@@ -151,11 +151,8 @@ public final class MorpheHook {
 
         TextView footer = new TextView(activity);
         footer.setText(
-            vietnamese
-                ? "Bản dịch và menu này do bản vá Morphe thêm vào. "
-                    + "Chọn \"Giới thiệu mpvEx\" để xem thông tin về ứng dụng."
-                : "The translation and this menu are added by the Morphe patch. "
-                    + "Choose \"About mpvEx\" for information about the app."
+            (vietnamese ? "Phiên bản vá: " : "Patch version: ")
+                + BuildConfig.PATCH_VERSION
         );
         footer.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
         footer.setAlpha(0.6f);
@@ -170,7 +167,7 @@ public final class MorpheHook {
             : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, theme);
-        builder.setTitle("Morphe");
+        builder.setTitle("kyurem39's patches");
         builder.setView(content);
         builder.setPositiveButton(vietnamese ? "Đóng" : "Close", null);
         builder.setNeutralButton(vietnamese ? "Giới thiệu mpvEx" : "About mpvEx", null);
