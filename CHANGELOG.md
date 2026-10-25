@@ -1,3 +1,9 @@
+## [1.1.0-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.0.1...v1.1.0-dev.1) (2026-10-25)
+
+### ✨ New Features
+
+* show the patch version in the Morphe sheet ([adc96c4](https://github.com/kyurem39/mpvEx-patches/commit/adc96c4f7af0b124c81baef84c80113c4e2e8b23))
+
 ## [1.0.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.0.0...v1.0.1) (2026-10-25)
 
 ### 🐛 Bug Fixes
