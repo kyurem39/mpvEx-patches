@@ -1,12 +1,12 @@
-# 👋🧩 kyurem39 Morphe patches
+# 🎬 kyurem39 Morphe patches
 
-Template repository for Morphe Patches.
+Morphe patch bundle for [mpvEx](https://github.com/marlboro-advance/mpvEx).
 
 ## ❓ About
 
-Patches for apps I like.
+Morphe patches for **mpvEx** (mpvExtended), the libmpv-based media player for Android.
 
-<!-- TODO: Update this about section with a brief introduction/summary about this repo and what it offers. -->
+Current target: `app.marlboroadvance.mpvex` v1.3.1-playstore (universal APK).
 
 ### How to use these patches
 

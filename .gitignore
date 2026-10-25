@@ -128,3 +128,6 @@ node_modules/
 # Ignore IDEA files
 .idea/
 local.properties
+
+# Local test artifacts (APKs, extracted APK sets)
+.work/
