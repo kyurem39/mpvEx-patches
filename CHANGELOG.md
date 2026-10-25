@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.0.0...v1.0.1) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* keep the Vietnamese toggle effective on a Vietnamese system ([78a9a75](https://github.com/kyurem39/mpvEx-patches/commit/78a9a7505790fdae193c2dcff241f8113d283129))
+
 ## [1.0.1-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.0.0...v1.0.1-dev.1) (2026-10-25)
 
 ### 🐛 Bug Fixes
