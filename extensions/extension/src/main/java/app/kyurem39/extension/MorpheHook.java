@@ -167,7 +167,7 @@ public final class MorpheHook {
             : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
 
         AlertDialog.Builder builder = new AlertDialog.Builder(activity, theme);
-        builder.setTitle("Morphe");
+        builder.setTitle("kyurem39's patches");
         builder.setView(content);
         builder.setPositiveButton(vietnamese ? "Đóng" : "Close", null);
         builder.setNeutralButton(vietnamese ? "Giới thiệu mpvEx" : "About mpvEx", null);
