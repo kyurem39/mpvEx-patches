@@ -7,6 +7,15 @@ extension {
 android {
     namespace = "app.kyurem39.extension"
 
+    // The Morphe sheet shows the patch version, so it is baked in from the release version.
+    buildFeatures {
+        buildConfig = true
+    }
+
+    defaultConfig {
+        buildConfigField("String", "PATCH_VERSION", "\"${rootProject.version}\"")
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
