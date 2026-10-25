@@ -5,8 +5,10 @@ import android.content.Context;
 import android.content.res.Configuration;
 import android.content.res.Resources;
 
+import java.util.Locale;
+
 /**
- * Applies the Vietnamese locale to an activity, or clears a previously applied one.
+ * Applies the language selected in the Morphe settings to an activity.
  *
  * <p>{@code applyOverrideConfiguration} is used instead of replacing the base context, because the
  * override keeps the theme the activity was created with. Should it be refused (it can only be
@@ -17,8 +19,6 @@ import android.content.res.Resources;
  * independent of the app's shrunk Kotlin runtime.
  */
 public final class MorpheLocale {
-    private static final String VIETNAMESE_LANGUAGE = "vi";
-
     private MorpheLocale() {}
 
     public static void overrideConfiguration(Activity activity) {
@@ -30,18 +30,16 @@ public final class MorpheLocale {
         Resources base = baseContext.getResources();
         Configuration configuration = new Configuration(base.getConfiguration());
 
-        if (MorphePrefs.isVietnameseEnabled(activity)) {
-            configuration.setLocale(MorphePrefs.VIETNAMESE);
-        } else if (VIETNAMESE_LANGUAGE.equals(
-            configuration.getLocales().get(0).getLanguage()
-        )) {
-            // The system is already Vietnamese, so there is nothing to override.
-            return;
-        }
-
-        // The override is applied even when the feature is off. Recreating an activity reuses the
-        // resources of its previous instance, so leaving the old override untouched would keep the
-        // previous language. Applying the base configuration resets it.
+        // The Vietnamese resources are compiled into the APK, so a system set to Vietnamese would
+        // select them even with the feature turned off. The locale is therefore always overridden:
+        // Vietnamese when the feature is on, the app's original English when it is off. Recreating
+        // an activity also reuses the resources of its previous instance, so the override has to be
+        // applied on every creation, not only when the feature is enabled.
+        configuration.setLocale(
+            MorphePrefs.isVietnameseEnabled(activity)
+                ? MorphePrefs.VIETNAMESE
+                : Locale.ENGLISH
+        );
 
         try {
             activity.applyOverrideConfiguration(configuration);
