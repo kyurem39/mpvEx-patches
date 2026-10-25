@@ -16,8 +16,8 @@ private val PLURALS_ENTRY =
     Regex("""<plurals name="([^"]+)"[^>]*>.*?</plurals>""", RegexOption.DOT_MATCHES_ALL)
 
 private val aboutRowLabels = mapOf(
-    "pref_about_title" to "Morphe",
-    "pref_about_summary" to "Morphe settings, Vietnamese language",
+    "pref_about_title" to "kyurem39's patches",
+    "pref_about_summary" to "Patches settings, About",
 )
 
 /**
