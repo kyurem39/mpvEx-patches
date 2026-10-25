@@ -1,4 +1,4 @@
-# 🎬 kyurem39 Morphe patches
+# 🎬 kyurem39's patches
 
 Morphe patch bundle for [mpvEx](https://github.com/marlboro-advance/mpvEx).
 
