@@ -1,3 +1,9 @@
+## [1.1.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.0...v1.1.1) (2026-10-25)
+
+### 🐛 Bug Fixes
+
+* name the patch source kyurem39's patches ([74b9cee](https://github.com/kyurem39/mpvEx-patches/commit/74b9ceef6ff53b064dbefbd1bb89d92c07e5ab35))
+
 ## [1.1.1-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.0...v1.1.1-dev.1) (2026-10-25)
 
 ### 🐛 Bug Fixes
