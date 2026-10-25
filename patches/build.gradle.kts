@@ -2,7 +2,7 @@ group = "app.kyurem39"
 
 patches {
     about {
-        name = "kyurem39 Morphe patches"
+        name = "kyurem39's patches"
         description = "Patches for mpvEx"
         source = "git@github.com:kyurem39/mpvEx-patches.git"
         author = "kyurem39"
