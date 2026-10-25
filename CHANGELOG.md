@@ -1,3 +1,9 @@
+## [1.1.0-dev.2](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.0-dev.1...v1.1.0-dev.2) (2026-10-25)
+
+### ✨ New Features
+
+* rename the Morphe sheet title to kyurem39's patches ([b9cfe4b](https://github.com/kyurem39/mpvEx-patches/commit/b9cfe4b38ed4a3869e76f7ee488bc5f2cea5b6b7))
+
 ## [1.1.0-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.0.1...v1.1.0-dev.1) (2026-10-25)
 
 ### ✨ New Features
