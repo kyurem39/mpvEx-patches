@@ -1,4 +1,4 @@
-# 👋🧩 Morphe Patches template
+# 👋🧩 kyurem39 Morphe patches
 
 Template repository for Morphe Patches.
 
@@ -10,7 +10,7 @@ Patches for apps I like.
 
 ### How to use these patches
 
-Click here to add these patches to Morphe: https://morphe.software/add-source?github=xyz-user/xyz-patches
+Click here to add these patches to Morphe: https://morphe.software/add-source?github=kyurem39/mpvEx-patches
 
 ## 🩹 Patches list
 
@@ -88,4 +88,4 @@ See the [Morphe documentation](https://github.com/MorpheApp/morphe-documentation
 
 ## 📜 License
 
-UserXYZ Patches are licensed under the [GNU General Public License v3.0](LICENSE)
+kyurem39 Morphe patches are licensed under the [GNU General Public License v3.0](LICENSE)
