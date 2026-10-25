@@ -125,9 +125,9 @@ public final class MorpheHook {
         TextView description = new TextView(activity);
         description.setText(
             vietnamese
-                ? "Dịch giao diện mpvEx sang tiếng Việt. Tắt để dùng ngôn ngữ hệ thống."
+                ? "Dịch giao diện mpvEx sang tiếng Việt. Tắt để quay về giao diện tiếng Anh."
                 : "Translate the mpvEx interface into Vietnamese. "
-                    + "Turn off to follow the system language."
+                    + "Turn off to use the original English interface."
         );
         description.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
         description.setAlpha(0.7f);
