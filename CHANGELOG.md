@@ -1,3 +1,9 @@
+## [1.2.0-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.1...v1.2.0-dev.1) (2026-10-25)
+
+### ✨ New Features
+
+* translate subtitles and add a shared patch settings panel ([1e6ea0e](https://github.com/kyurem39/mpvEx-patches/commit/1e6ea0eedc945a8551be3d6661813abe684d3a12))
+
 ## [1.1.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.0...v1.1.1) (2026-10-25)
 
 ### 🐛 Bug Fixes
