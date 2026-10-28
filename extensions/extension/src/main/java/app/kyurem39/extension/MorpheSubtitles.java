@@ -2,14 +2,19 @@ package app.kyurem39.extension;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.database.Cursor;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
 import android.net.Uri;
+import android.os.Environment;
 import android.provider.OpenableColumns;
 import android.util.Log;
 
 import org.json.JSONArray;
 
 import java.io.ByteArrayOutputStream;
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -29,20 +34,25 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Translates external subtitle files into the language chosen in the patch settings.
+ * Translates the subtitles of the videos the app plays into the language chosen in the patch
+ * settings.
  *
- * <p>The app loads subtitles through two paths: the automatic loader in {@code SubtitleOps} and
- * the manual picker in {@code PlayerViewModel}. Both paths are hooked by the patch and end up here.
- * A translated copy is written to the app cache and added as a separate mpv track, so the original
- * subtitle remains available.
+ * <p>Subtitles come from two places: files next to the video, which the app loads through
+ * {@code SubtitleOps} and the manual picker in {@code PlayerViewModel}, and subtitle tracks embedded
+ * in the video file itself. Both end up here. A translated copy is written to the app cache and
+ * added as a separate mpv track, so the original subtitle remains available.
  *
  * <p>This class is written in Java because the app's Kotlin runtime was shrunk by R8 and must not be
  * used by extension code. It only uses framework APIs, plus {@code org.json}, which is part of
@@ -54,6 +64,30 @@ public final class MorpheSubtitles {
         "https://translate.googleapis.com/translate_a/single";
     private static final int MAX_BATCH_CHARS = 3000;
     private static final String MARKER = "@@@";
+    private static final int MAX_CUE_MILLIS = 10000;
+    private static final int UNKNOWN_CUE_MILLIS = 3000;
+
+    // Matroska (EBML) element ids used by the built-in subtitle reader.
+    private static final long MKV_EBML = 0x1A45DFA3L;
+    private static final long MKV_SEGMENT = 0x18538067L;
+    private static final long MKV_SEEK_HEAD = 0x114D9B74L;
+    private static final long MKV_INFO = 0x1549A966L;
+    private static final long MKV_TIMESTAMP_SCALE = 0x2AD7B1L;
+    private static final long MKV_TRACKS = 0x1654AE6BL;
+    private static final long MKV_TRACK_ENTRY = 0xAEL;
+    private static final long MKV_TRACK_NUMBER = 0xD7L;
+    private static final long MKV_TRACK_TYPE = 0x83L;
+    private static final long MKV_CODEC_ID = 0x86L;
+    private static final long MKV_CLUSTER = 0x1F43B675L;
+    private static final long MKV_TIMESTAMP = 0xE7L;
+    private static final long MKV_SIMPLE_BLOCK = 0xA3L;
+    private static final long MKV_BLOCK_GROUP = 0xA0L;
+    private static final long MKV_BLOCK = 0xA1L;
+    private static final long MKV_BLOCK_DURATION = 0x9BL;
+    private static final long MKV_CUES = 0x1C53BB6BL;
+    private static final long MKV_CHAPTERS = 0x1043A770L;
+    private static final long MKV_ATTACHMENTS = 0x1941A469L;
+    private static final long MKV_TAGS = 0x1254C367L;
 
     private static final String[] CODES = {
         "vi", "en", "ja", "ko", "zh-CN", "zh-TW", "th", "id", "ms", "fil",
@@ -82,6 +116,17 @@ public final class MorpheSubtitles {
     private static final Set<String> RUNNING =
         Collections.synchronizedSet(new HashSet<String>());
 
+    /**
+     * Videos whose translation was already started recently, keyed by file or URI and target
+     * language. The app reports a loaded file more than once (the player observer and the subtitle
+     * loader both run), and only one of those calls must add the translated track.
+     */
+    private static final Map<String, Long> CLAIMED = new HashMap<String, Long>();
+    private static final long CLAIM_MILLIS = 10000;
+
+    /** {@code MPV_EVENT_FILE_LOADED} from {@code mpv/event.h}. */
+    private static final int MPV_EVENT_FILE_LOADED = 8;
+
     private MorpheSubtitles() {}
 
     public static String[] languageCodes() {
@@ -103,6 +148,45 @@ public final class MorpheSubtitles {
         return code == null ? "" : code;
     }
 
+    /**
+     * Called for every mpv event, before the app handles it.
+     *
+     * <p>This is the only call site that runs for every video the player opens. The app's subtitle
+     * loader cannot be used for that: the file browser opens videos through a content URI, which the
+     * player turns into an {@code fd://} descriptor, and the loader skips those because they have no
+     * parent directory. The event is delivered on mpv's own thread, so the work started here is
+     * asynchronous.
+     */
+    public static void onPlayerEvent(Object observer, int eventId) {
+        if (eventId != MPV_EVENT_FILE_LOADED) return;
+
+        try {
+            Context context = appContext();
+            if (context == null || !MorphePrefs.isSubtitleTranslationEnabled(context)) return;
+
+            Activity activity = observerActivity(observer);
+            if (activity == null) return;
+
+            Uri uri = intentUri(activity);
+            if (uri == null) return;
+
+            String name = queryDisplayName(context, uri);
+            if (name == null || name.isEmpty()) name = uri.getLastPathSegment();
+            if (name == null || name.isEmpty()) name = "video";
+
+            File video = videoFile(context, uri);
+            if (video != null) {
+                translateForVideo(context, video, name, activity);
+            } else {
+                // No filesystem path (for example a document provider URI): read the embedded
+                // subtitle track straight from the URI.
+                translateEmbedded(context, uri.toString(), uri, name, activity);
+            }
+        } catch (Throwable failure) {
+            Log.w(TAG, "Could not start subtitle translation for the loaded file", failure);
+        }
+    }
+
     /** Called before the app's automatic local-subtitle scan. */
     public static void onAutoload(String videoFilePath, String videoFileName) {
         try {
@@ -113,20 +197,37 @@ public final class MorpheSubtitles {
                 return;
             }
 
-            File video = new File(videoFilePath);
-            File directory = video.getParentFile();
-            if (directory == null) return;
+            translateForVideo(context, new File(videoFilePath), videoFileName, MorpheHook.currentActivity());
+        } catch (Throwable failure) {
+            Log.w(TAG, "Could not start automatic subtitle translation", failure);
+        }
+    }
 
-            String baseName = videoFileName;
-            int dot = baseName.lastIndexOf('.');
-            if (dot > 0) baseName = baseName.substring(0, dot);
-            String base = baseName.toLowerCase(Locale.ROOT);
+    /**
+     * Translates the subtitle file next to {@code video}, or the subtitle track embedded in it when
+     * there is no separate file.
+     */
+    private static void translateForVideo(
+        Context context,
+        File video,
+        String videoFileName,
+        Activity owner
+    ) {
+        if (video == null || !video.isFile()) return;
 
-            File[] files = directory.listFiles();
-            if (files == null) return;
+        String target = MorphePrefs.subtitleTargetLanguage(context);
+        if (!claim(video.getAbsolutePath() + "|" + target)) return;
 
-            Activity owner = MorpheHook.currentActivity();
+        File directory = video.getParentFile();
+        if (directory == null) return;
 
+        String baseName = videoFileName == null ? video.getName() : videoFileName;
+        int dot = baseName.lastIndexOf('.');
+        if (dot > 0) baseName = baseName.substring(0, dot);
+        String base = baseName.toLowerCase(Locale.ROOT);
+
+        File[] files = directory.listFiles();
+        if (files != null) {
             for (File file : files) {
                 if (!file.isFile() || !isTranslatable(file.getName())) continue;
                 String name = file.getName();
@@ -137,8 +238,104 @@ public final class MorpheSubtitles {
                 translateFile(context, file, name, owner);
                 return;
             }
+        }
+
+        // No separate subtitle file sits next to the video, so its subtitles may be embedded.
+        translateEmbedded(context, video.getAbsolutePath(), video, videoFileName, owner);
+    }
+
+    /**
+     * Marks a video as handled for this session and target. Returns {@code false} when another call
+     * claimed it moments ago.
+     */
+    private static boolean claim(String key) {
+        long now = System.currentTimeMillis();
+        synchronized (CLAIMED) {
+            Long last = CLAIMED.get(key);
+            if (last != null && now - last < CLAIM_MILLIS) return false;
+
+            CLAIMED.put(key, now);
+            if (CLAIMED.size() > 64) {
+                for (Iterator<Map.Entry<String, Long>> iterator = CLAIMED.entrySet().iterator();
+                    iterator.hasNext(); ) {
+                    if (now - iterator.next().getValue() > CLAIM_MILLIS) iterator.remove();
+                }
+            }
+            return true;
+        }
+    }
+
+    /** The activity that reported the mpv event. */
+    private static Activity observerActivity(Object observer) {
+        if (observer != null) {
+            try {
+                java.lang.reflect.Field field = observer.getClass().getDeclaredField("activity");
+                field.setAccessible(true);
+                Object value = field.get(observer);
+                if (value instanceof Activity) return (Activity) value;
+            } catch (Throwable ignored) {
+                // Fall back to the activity the app currently shows.
+            }
+        }
+        return MorpheHook.currentActivity();
+    }
+
+    /** The media URI the player was started with. */
+    private static Uri intentUri(Activity activity) {
+        Intent intent = activity.getIntent();
+        if (intent == null) return null;
+
+        Uri data = intent.getData();
+        if (data != null) return data;
+
+        String extra = intent.getStringExtra("uri");
+        return extra == null || extra.isEmpty() ? null : Uri.parse(extra);
+    }
+
+    /**
+     * Filesystem file of a media URI, or {@code null} when it cannot be resolved.
+     *
+     * <p>The app itself resolves content URIs this way for its playback history: the data column of
+     * the media store, then the relative path and display name.
+     */
+    private static File videoFile(Context context, Uri uri) {
+        String scheme = uri.getScheme();
+        if (scheme == null) return null;
+
+        if ("file".equalsIgnoreCase(scheme)) {
+            String path = uri.getPath();
+            return path == null ? null : new File(path);
+        }
+        if (!"content".equalsIgnoreCase(scheme)) return null;
+
+        String path = queryColumn(context, uri, "_data");
+        if (path == null || path.isEmpty()) {
+            String relative = queryColumn(context, uri, "relative_path");
+            String name = queryColumn(context, uri, "display_name");
+            if (relative == null || name == null) return null;
+            path = Environment.getExternalStorageDirectory().getAbsolutePath()
+                + "/" + relative + name;
+        }
+
+        File file = new File(path);
+        return file.isFile() ? file : null;
+    }
+
+    /** One string column of a content URI, or {@code null} when it is unavailable. */
+    private static String queryColumn(Context context, Uri uri, String column) {
+        try (Cursor cursor = context.getContentResolver().query(
+            uri,
+            new String[] {column},
+            null,
+            null,
+            null
+        )) {
+            if (cursor == null || !cursor.moveToFirst()) return null;
+
+            int index = cursor.getColumnIndex(column);
+            return index < 0 ? null : cursor.getString(index);
         } catch (Throwable failure) {
-            Log.w(TAG, "Could not start automatic subtitle translation", failure);
+            return null;
         }
     }
 
@@ -259,6 +456,728 @@ public final class MorpheSubtitles {
     }
 
     /**
+     * Translates the text subtitle track embedded in a video, when it has one.
+     *
+     * <p>The container is read with {@link MediaExtractor}, which is the platform demuxer and
+     * understands the formats mpvEx plays, so no per-container parsing is needed. The cues are
+     * written as SRT and then translated, which is the same path an external file takes.
+     *
+     * @param identity stable key of the video, used for the cache file name
+     * @param source the video as a {@link File} or as a {@link Uri}
+     */
+    private static void translateEmbedded(
+        final Context context,
+        final String identity,
+        final Object source,
+        final String videoName,
+        final Activity owner
+    ) {
+        if (source == null) return;
+        if (source instanceof File) {
+            File file = (File) source;
+            if (!file.isFile() || file.length() == 0) return;
+        }
+
+        final String target = MorphePrefs.subtitleTargetLanguage(context);
+        final String key = identity + "|embedded|" + target;
+
+        String base = videoName == null || videoName.isEmpty() ? "video" : videoName;
+        int dot = base.lastIndexOf('.');
+        if (dot > 0) base = base.substring(0, dot);
+
+        final File cache = cacheFile(context, key, base + ".embedded.srt", target);
+        if (cache == null) return;
+
+        final String displayName = base + " (embedded)";
+        final long stamp = source instanceof File ? ((File) source).lastModified() : 0L;
+
+        if (cache.isFile() && cache.length() > 0 && (stamp == 0L || cache.lastModified() >= stamp)) {
+            addTrackLater(context, cache, displayName, target, owner);
+            return;
+        }
+
+        if (!RUNNING.add(key)) return;
+
+        new Thread(
+            new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        String text = extractEmbedded(context, source);
+                        if (text == null) return;
+
+                        Translation translation = translateText(text, target, "srt");
+                        if (translation == null) return;
+                        if (sameLanguage(translation.detected, target) || !translation.changed) {
+                            Log.i(TAG, "Embedded subtitles already in " + target + ": " + identity);
+                            return;
+                        }
+                        writeText(cache, translation.text);
+                        addTrack(context, cache, displayName, target, owner);
+                    } catch (Throwable failure) {
+                        Log.w(TAG, "Could not translate embedded subtitles of " + identity, failure);
+                    } finally {
+                        RUNNING.remove(key);
+                    }
+                }
+            },
+            "MorpheEmbeddedTranslation"
+        ).start();
+    }
+
+    /**
+     * Reads the embedded subtitle track the player is using and returns it as SRT, or {@code null}
+     * when the video has no text subtitle track.
+     *
+     * <p>{@link MediaExtractor} is tried first because it is the platform demuxer. Some devices do
+     * not expose Matroska subtitle tracks through it (they report only the video and audio tracks),
+     * so Matroska files fall back to a small built-in reader.
+     */
+    private static String extractEmbedded(Context context, Object source) {
+        String text = extractWithMediaExtractor(context, source);
+        if (text != null) return text;
+        if (source instanceof File) return extractMkv((File) source);
+        return null;
+    }
+
+    /** Reads the selected embedded subtitle track through {@link MediaExtractor}. */
+    private static String extractWithMediaExtractor(Context context, Object source) {
+        MediaExtractor extractor = new MediaExtractor();
+        try {
+            if (source instanceof File) {
+                extractor.setDataSource(((File) source).getAbsolutePath());
+            } else {
+                extractor.setDataSource(context, (Uri) source, null);
+            }
+
+            List<Integer> subtitleTracks = new ArrayList<Integer>();
+            List<String> kinds = new ArrayList<String>();
+            StringBuilder mimes = new StringBuilder();
+            for (int index = 0; index < extractor.getTrackCount(); index++) {
+                String mime = extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME);
+                mimes.append(index).append('=').append(mime).append(' ');
+                if (!isSubtitleMime(mime)) continue;
+                subtitleTracks.add(index);
+                kinds.add(embeddedKind(mime));
+            }
+            Log.i(TAG, "Embedded tracks in " + label(source) + ": " + mimes);
+
+            int chosen = -1;
+            int wanted = selectedEmbeddedPosition();
+            if (wanted >= 0 && wanted < subtitleTracks.size() && kinds.get(wanted) != null) {
+                chosen = wanted;
+            } else {
+                for (int position = 0; position < subtitleTracks.size(); position++) {
+                    if (kinds.get(position) == null) continue;
+                    chosen = position;
+                    break;
+                }
+            }
+
+            if (chosen < 0) {
+                Log.i(TAG, "No embedded text subtitle in " + label(source));
+                return null;
+            }
+
+            String kind = kinds.get(chosen);
+            extractor.selectTrack(subtitleTracks.get(chosen));
+
+            List<TimedText> cues = new ArrayList<TimedText>();
+            ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024);
+            while (true) {
+                buffer.clear();
+                int size = extractor.readSampleData(buffer, 0);
+                if (size < 0) break;
+
+                long time = extractor.getSampleTime();
+                byte[] data = new byte[size];
+                buffer.position(0);
+                buffer.get(data, 0, size);
+
+                addCue(cues, embeddedText(data, kind), time / 1000);
+                if (!extractor.advance()) break;
+            }
+
+            Log.i(
+                TAG,
+                "Read " + cues.size() + " embedded subtitle cue(s) from " + label(source)
+                    + " (" + kind + ")"
+            );
+            return cues.isEmpty() ? null : toSrt(cues);
+        } catch (Throwable failure) {
+            Log.w(TAG, "Could not read embedded subtitles from " + label(source), failure);
+            return null;
+        } finally {
+            extractor.release();
+        }
+    }
+
+    /**
+     * Reads the selected text subtitle track of a Matroska file.
+     *
+     * <p>Some devices report only the video and audio tracks of a Matroska file through
+     * {@link MediaExtractor}, so the container is read directly here. Only the parts needed for
+     * subtitles are parsed: the track list, the timestamp scale and the subtitle blocks.
+     */
+    private static String extractMkv(File file) {
+        MkvParser parser = new MkvParser(selectedEmbeddedPosition());
+        try {
+            parser.parse(file);
+        } catch (Throwable failure) {
+            Log.w(TAG, "Could not read Matroska subtitles of " + file.getName(), failure);
+        }
+
+        Log.i(
+            TAG,
+            "Read " + parser.cues.size() + " Matroska subtitle cue(s) from " + file.getName()
+        );
+        return parser.cues.isEmpty() ? null : toSrt(parser.cues);
+    }
+
+    /** Minimal Matroska reader that only collects one text subtitle track. */
+    private static final class MkvParser {
+        private final int wanted;
+        final List<TimedText> cues = new ArrayList<TimedText>();
+
+        private final List<Long> numbers = new ArrayList<Long>();
+        private final List<String> kinds = new ArrayList<String>();
+        private long scale = 1000000L;
+        private long clusterMillis;
+        private long pendingId = -1L;
+        private long pendingSize = -1L;
+        private long target = -1;
+        private String targetKind;
+
+        MkvParser(int wanted) {
+            this.wanted = wanted;
+        }
+
+        void parse(File file) throws IOException {
+            try (InputStream input = new BufferedInputStream(new FileInputStream(file), 65536)) {
+                MkvReader reader = new MkvReader(input);
+
+                long id = reader.readId();
+                long size = reader.readSize();
+                if (id != MKV_EBML || size < 0) return;
+                reader.skipTo(reader.position + size);
+
+                while (true) {
+                    id = reader.readId();
+                    if (id < 0) break;
+
+                    size = reader.readSize();
+                    if (id == MKV_SEGMENT) {
+                        segment(reader, size < 0 ? Long.MAX_VALUE : reader.position + size);
+                        break;
+                    }
+                    if (size < 0) break;
+                    reader.skipTo(reader.position + size);
+                }
+            }
+        }
+
+        private void segment(MkvReader reader, long end) throws IOException {
+            while (reader.position < end) {
+                long id = pendingId >= 0 ? pendingId : reader.readId();
+                long size = pendingId >= 0 ? pendingSize : reader.readSize();
+                pendingId = -1L;
+                pendingSize = -1L;
+                if (id < 0) return;
+
+                if (id == MKV_CLUSTER) {
+                    cluster(reader, size);
+                    continue;
+                }
+                if (size < 0) return;
+
+                long dataEnd = reader.position + size;
+                if (id == MKV_INFO) {
+                    info(reader, dataEnd);
+                } else if (id == MKV_TRACKS) {
+                    tracks(reader, dataEnd);
+                }
+                reader.skipTo(dataEnd);
+            }
+        }
+
+        private void info(MkvReader reader, long end) throws IOException {
+            while (reader.position < end) {
+                long id = reader.readId();
+                long size = reader.readSize();
+                if (id < 0 || size < 0) return;
+
+                long dataEnd = reader.position + size;
+                if (id == MKV_TIMESTAMP_SCALE) scale = reader.readUnsigned(size);
+                reader.skipTo(dataEnd);
+            }
+        }
+
+        private void tracks(MkvReader reader, long end) throws IOException {
+            while (reader.position < end) {
+                long id = reader.readId();
+                long size = reader.readSize();
+                if (id < 0 || size < 0) return;
+
+                long dataEnd = reader.position + size;
+                if (id == MKV_TRACK_ENTRY) entry(reader, dataEnd);
+                reader.skipTo(dataEnd);
+            }
+        }
+
+        private void entry(MkvReader reader, long end) throws IOException {
+            long number = -1;
+            long type = -1;
+            String codec = null;
+
+            while (reader.position < end) {
+                long id = reader.readId();
+                long size = reader.readSize();
+                if (id < 0 || size < 0) return;
+
+                long dataEnd = reader.position + size;
+                if (id == MKV_TRACK_NUMBER) {
+                    number = reader.readUnsigned(size);
+                } else if (id == MKV_TRACK_TYPE) {
+                    type = reader.readUnsigned(size);
+                } else if (id == MKV_CODEC_ID) {
+                    codec = reader.readString((int) size);
+                }
+                reader.skipTo(dataEnd);
+            }
+
+            if (type != 0x11 || number < 0) return;
+
+            String kind = mkvKind(codec);
+            if (kind == null) return;
+
+            numbers.add(number);
+            kinds.add(kind);
+        }
+
+        private void cluster(MkvReader reader, long size) throws IOException {
+            long end = size < 0 ? Long.MAX_VALUE : reader.position + size;
+            clusterMillis = 0L;
+
+            while (reader.position < end) {
+                long id = reader.readId();
+                if (id < 0) return;
+
+                long childSize = reader.readSize();
+                if (isTopLevel(id)) {
+                    pendingId = id;
+                    pendingSize = childSize;
+                    return;
+                }
+                if (childSize < 0) return;
+
+                long dataEnd = reader.position + childSize;
+                if (id == MKV_TIMESTAMP) {
+                    clusterMillis = millis(reader.readUnsigned(childSize));
+                } else if (id == MKV_SIMPLE_BLOCK) {
+                    TimedText cue = block(reader, childSize);
+                    if (cue != null) cues.add(cue);
+                } else if (id == MKV_BLOCK_GROUP) {
+                    group(reader, dataEnd);
+                }
+                reader.skipTo(dataEnd);
+            }
+        }
+
+        private void group(MkvReader reader, long end) throws IOException {
+            TimedText cue = null;
+            long duration = -1;
+
+            while (reader.position < end) {
+                long id = reader.readId();
+                long size = reader.readSize();
+                if (id < 0 || size < 0) return;
+
+                long dataEnd = reader.position + size;
+                if (id == MKV_BLOCK) {
+                    cue = block(reader, size);
+                } else if (id == MKV_BLOCK_DURATION) {
+                    duration = millis(reader.readUnsigned(size));
+                }
+                reader.skipTo(dataEnd);
+            }
+
+            if (cue == null) return;
+            cues.add(
+                duration > 0 ? new TimedText(cue.start, cue.start + duration, cue.text) : cue
+            );
+        }
+
+        /** One subtitle block, or {@code null} when it belongs to another track. */
+        private TimedText block(MkvReader reader, long size) throws IOException {
+            long end = reader.position + size;
+            long track = reader.readVint();
+            int high = reader.read();
+            int low = reader.read();
+            reader.read(); // flags
+            if (track < 0 || high < 0 || low < 0) return null;
+
+            long start = clusterMillis + millis((short) ((high << 8) | low));
+
+            int length = (int) Math.max(0, Math.min(end - reader.position, Integer.MAX_VALUE));
+            byte[] payload = new byte[length];
+            if (length > 0) reader.readFully(payload, 0, length);
+
+            if (target < 0) resolveTarget();
+            if (target < 0 || track != target) return null;
+
+            String text = blockText(payload, targetKind);
+            return text == null || text.isEmpty() ? null : new TimedText(start, -1, text);
+        }
+
+        private void resolveTarget() {
+            if (numbers.isEmpty()) return;
+
+            int position = wanted >= 0 && wanted < numbers.size() ? wanted : 0;
+            target = numbers.get(position).longValue();
+            targetKind = kinds.get(position);
+        }
+
+        private String blockText(byte[] payload, String kind) {
+            if (payload.length == 0) return null;
+
+            String text = decode(payload);
+            if ("ass".equals(kind)) {
+                // ReadOrder, Layer, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+                String[] fields = text.split(",", 9);
+                text = fields.length == 9 ? fields[8] : text;
+            } else if ("vtt".equals(kind)) {
+                text = text.replaceAll("<[^>]*>", "");
+            }
+            return cleanCueText(text);
+        }
+
+        private long millis(long ticks) {
+            return Math.round(ticks * scale / 1000000.0);
+        }
+
+        private boolean isTopLevel(long id) {
+            return id == MKV_CLUSTER
+                || id == MKV_TRACKS
+                || id == MKV_INFO
+                || id == MKV_SEEK_HEAD
+                || id == MKV_CUES
+                || id == MKV_CHAPTERS
+                || id == MKV_ATTACHMENTS
+                || id == MKV_TAGS;
+        }
+    }
+
+    /** Subtitle kind of a Matroska codec id, or {@code null} when its text cannot be read. */
+    private static String mkvKind(String codec) {
+        if (codec == null) return null;
+        if (codec.contains("UTF8")) return "srt";
+        if (codec.contains("ASS") || codec.contains("SSA")) return "ass";
+        if (codec.contains("WEBVTT") || codec.contains("VTT")) return "vtt";
+        return null;
+    }
+
+    /** Byte reader with the EBML variable-length integers Matroska uses. */
+    private static final class MkvReader {
+        private final InputStream input;
+        long position;
+
+        MkvReader(InputStream input) {
+            this.input = input;
+        }
+
+        int read() throws IOException {
+            int value = input.read();
+            if (value >= 0) position++;
+            return value;
+        }
+
+        /** Element id, or -1 at the end of the file. */
+        long readId() throws IOException {
+            int first = read();
+            if (first < 0) return -1;
+
+            int length = 1;
+            for (int mask = 0x80; mask > 0x08 && (first & mask) == 0; mask >>= 1) length++;
+
+            long value = first;
+            for (int index = 1; index < length; index++) {
+                int next = read();
+                if (next < 0) return -1;
+                value = (value << 8) | next;
+            }
+            return value;
+        }
+
+        /** Element size, or -1 when it is unknown or the file ended. */
+        long readSize() throws IOException {
+            int first = read();
+            if (first < 0) return -1;
+
+            int mask = 0x80;
+            int length = 1;
+            while (length < 8 && (first & mask) == 0) {
+                mask >>= 1;
+                length++;
+            }
+
+            long value = first & (mask - 1);
+            boolean unknown = value == mask - 1;
+            for (int index = 1; index < length; index++) {
+                int next = read();
+                if (next < 0) return -1;
+                value = (value << 8) | next;
+                if (next != 0xFF) unknown = false;
+            }
+            return unknown ? -1 : value;
+        }
+
+        /** Variable-length integer without the unknown-size meaning. */
+        long readVint() throws IOException {
+            int first = read();
+            if (first < 0) return -1;
+
+            int mask = 0x80;
+            int length = 1;
+            while (length < 8 && (first & mask) == 0) {
+                mask >>= 1;
+                length++;
+            }
+
+            long value = first & (mask - 1);
+            for (int index = 1; index < length; index++) {
+                int next = read();
+                if (next < 0) return -1;
+                value = (value << 8) | next;
+            }
+            return value;
+        }
+
+        long readUnsigned(long size) throws IOException {
+            long value = 0;
+            for (long index = 0; index < size; index++) {
+                int next = read();
+                if (next < 0) return value;
+                value = (value << 8) | next;
+            }
+            return value;
+        }
+
+        String readString(int size) throws IOException {
+            byte[] data = new byte[Math.max(0, size)];
+            readFully(data, 0, data.length);
+
+            int length = data.length;
+            while (length > 0 && data[length - 1] == 0) length--;
+            return new String(data, 0, length, StandardCharsets.UTF_8);
+        }
+
+        void readFully(byte[] target, int offset, int length) throws IOException {
+            int done = 0;
+            while (done < length) {
+                int count = input.read(target, offset + done, length - done);
+                if (count < 0) break;
+                done += count;
+                position += count;
+            }
+        }
+
+        void skipTo(long target) throws IOException {
+            while (position < target) {
+                long skipped = input.skip(target - position);
+                if (skipped > 0) {
+                    position += skipped;
+                } else if (read() < 0) {
+                    position = target;
+                    return;
+                }
+            }
+        }
+    }
+
+    /** Short name of a video source, for log messages. */
+    private static String label(Object source) {
+        if (source instanceof File) return ((File) source).getName();
+        if (source instanceof Uri) {
+            String name = ((Uri) source).getLastPathSegment();
+            return name == null ? source.toString() : name;
+        }
+        return String.valueOf(source);
+    }
+
+    /**
+     * Turns one subtitle sample into a cue. Samples usually carry the text only, with the timing in
+     * the container, but SSA dialogue lines and WebVTT cues can carry their own timing.
+     */
+    private static void addCue(List<TimedText> cues, String raw, long containerMillis) {
+        if (raw == null) return;
+
+        String text = raw.replace("\r\n", "\n").replace('\r', '\n').trim();
+        if (text.isEmpty()) return;
+
+        int arrow = text.indexOf("-->");
+        if (arrow > 0) {
+            int lineStart = text.lastIndexOf('\n', arrow - 1) + 1;
+            int lineEnd = text.indexOf('\n', arrow);
+            String timing = text.substring(lineStart, lineEnd < 0 ? text.length() : lineEnd);
+            String[] bounds = timing.split("-->");
+            long start = bounds.length == 2 ? parseTimecode(bounds[0]) : -1;
+            long end = bounds.length == 2 ? parseTimecode(bounds[1]) : -1;
+            if (start >= 0) {
+                String body = lineEnd < 0 ? "" : text.substring(lineEnd + 1);
+                cues.add(new TimedText(start, end, cleanCueText(body)));
+                return;
+            }
+        }
+
+        if (text.regionMatches(true, 0, "Dialogue:", 0, 9)) {
+            // Dialogue: layer,start,end,style,name,marginL,marginR,marginV,effect,text
+            String[] fields = text.split(",", 10);
+            if (fields.length == 10) {
+                long start = parseTimecode(fields[1]);
+                long end = parseTimecode(fields[2]);
+                if (start >= 0) {
+                    cues.add(new TimedText(start, end, cleanCueText(fields[9])));
+                    return;
+                }
+            }
+        }
+
+        cues.add(new TimedText(containerMillis, -1, cleanCueText(text)));
+    }
+
+    /** Text of one sample, without the format's own framing. */
+    private static String embeddedText(byte[] data, String kind) {
+        if (data == null || data.length == 0) return null;
+
+        if ("tx3g".equals(kind)) {
+            // 3GPP timed text: a two byte length followed by the UTF-8 text.
+            if (data.length < 2) return null;
+            int length = ((data[0] & 0xFF) << 8) | (data[1] & 0xFF);
+            if (length <= 0 || length > data.length - 2) length = data.length - 2;
+            return new String(data, 2, length, StandardCharsets.UTF_8);
+        }
+
+        return decode(data);
+    }
+
+    /** Removes SSA override tags and turns their line breaks into real ones. */
+    private static String cleanCueText(String text) {
+        return text.replaceAll("\\{[^}]*\\}", "")
+            .replace("\\N", "\n")
+            .replace("\\n", "\n")
+            .trim();
+    }
+
+    /** Writes the cues as SRT, the format the translation path understands. */
+    private static String toSrt(List<TimedText> cues) {
+        Collections.sort(
+            cues,
+            new Comparator<TimedText>() {
+                @Override
+                public int compare(TimedText left, TimedText right) {
+                    if (left.start < right.start) return -1;
+                    return left.start == right.start ? 0 : 1;
+                }
+            }
+        );
+
+        StringBuilder out = new StringBuilder();
+        for (int index = 0; index < cues.size(); index++) {
+            TimedText cue = cues.get(index);
+
+            long end = cue.end;
+            if (end <= cue.start) {
+                long next = index + 1 < cues.size() ? cues.get(index + 1).start : -1;
+                end = next > cue.start
+                    ? Math.min(next, cue.start + MAX_CUE_MILLIS)
+                    : cue.start + UNKNOWN_CUE_MILLIS;
+            }
+
+            if (out.length() > 0) out.append('\n');
+            out.append(index + 1).append('\n');
+            out.append(srtTimecode(cue.start)).append(" --> ").append(srtTimecode(end)).append('\n');
+            out.append(cue.text).append('\n');
+        }
+        return out.toString();
+    }
+
+    private static String srtTimecode(long milliseconds) {
+        long value = Math.max(0, milliseconds);
+        long hours = value / 3600000;
+        long minutes = (value % 3600000) / 60000;
+        long seconds = (value % 60000) / 1000;
+        return String.format(
+            Locale.US,
+            "%02d:%02d:%02d,%03d",
+            hours,
+            minutes,
+            seconds,
+            value % 1000
+        );
+    }
+
+    /** Milliseconds of an SRT, WebVTT or SSA timecode, or -1 when it cannot be read. */
+    private static long parseTimecode(String value) {
+        String[] parts = value.trim().replace(',', '.').split(":");
+        if (parts.length < 2) return -1;
+
+        try {
+            double seconds = Double.parseDouble(parts[parts.length - 1]);
+            int minutes = Integer.parseInt(parts[parts.length - 2].trim());
+            int hours = parts.length > 2 ? Integer.parseInt(parts[parts.length - 3].trim()) : 0;
+            return Math.round(((hours * 60 + minutes) * 60 + seconds) * 1000);
+        } catch (NumberFormatException invalid) {
+            return -1;
+        }
+    }
+
+    /** Subtitle kind of an embedded track, or {@code null} when its text cannot be read. */
+    private static String embeddedKind(String mime) {
+        if (mime == null) return null;
+
+        String value = mime.toLowerCase(Locale.ROOT);
+        if (value.contains("subrip") || value.contains("srt")) return "srt";
+        if (value.contains("ssa") || value.contains("ass")) return "ass";
+        if (value.contains("vtt")) return "vtt";
+        if (value.contains("tx3g") || value.contains("3gpp") || value.contains("quicktime-text")) {
+            return "tx3g";
+        }
+        return null;
+    }
+
+    private static boolean isSubtitleMime(String mime) {
+        if (mime == null) return false;
+        if (embeddedKind(mime) != null) return true;
+
+        String value = mime.toLowerCase(Locale.ROOT);
+        return value.contains("pgs")
+            || value.contains("dvb")
+            || value.contains("dvd")
+            || value.contains("vobsub")
+            || value.contains("subtitle");
+    }
+
+    /**
+     * Position of the embedded subtitle track among the container's subtitle tracks, following the
+     * track mpv selected. Falls back to the first one.
+     */
+    private static int selectedEmbeddedPosition() {
+        int position = 0;
+        int selected = selectedSidId();
+        int count = trackCount();
+
+        for (int index = 0; index < count; index++) {
+            if (!"sub".equals(property("track-list/" + index + "/type"))) continue;
+            if ("yes".equalsIgnoreCase(property("track-list/" + index + "/external"))) continue;
+
+            Object id = propertyInt("track-list/" + index + "/id");
+            if (selected > 0 && id instanceof Integer && (Integer) id == selected) return position;
+            position++;
+        }
+        return 0;
+    }
+
+    /**
      * Adds the translated track on a background thread.
      *
      * <p>The track is added synchronously from the hook when the translation is already cached, and
@@ -301,6 +1220,13 @@ public final class MorpheSubtitles {
 
         String name = sourceName == null || sourceName.isEmpty() ? "Subtitle" : sourceName;
         String title = name + " [" + displayName(target, isVietnameseUi(context)) + "]";
+
+        // The app reports a loaded file more than once, so the same track may already be there.
+        int existing = findTrackId(title);
+        if (existing > 0) {
+            selectId(existing);
+            return;
+        }
 
         int translated = -1;
         try {
@@ -418,12 +1344,39 @@ public final class MorpheSubtitles {
      * {@code no} when subtitles are off.
      */
     private static String selectedSid() {
+        String value = property("sid");
+        return value == null ? null : value.trim();
+    }
+
+    /** Id of the selected subtitle track, or -1 when subtitles are off or unreadable. */
+    private static int selectedSidId() {
+        String selected = selectedSid();
+        if (selected == null || "no".equalsIgnoreCase(selected)) return -1;
+
+        try {
+            return Integer.parseInt(selected);
+        } catch (NumberFormatException invalid) {
+            return -1;
+        }
+    }
+
+    /** A string property of the running player, or {@code null} when it cannot be read. */
+    private static String property(String name) {
         try {
             Object value = mpvMethod("getPropertyString", String.class).invoke(
                 mpvInstance(),
-                "sid"
+                name
             );
-            return value instanceof String ? ((String) value).trim() : null;
+            return value instanceof String ? (String) value : null;
+        } catch (Throwable failure) {
+            return null;
+        }
+    }
+
+    /** An integer property of the running player, or {@code null} when it cannot be read. */
+    private static Object propertyInt(String name) {
+        try {
+            return mpvMethod("getPropertyInt", String.class).invoke(mpvInstance(), name);
         } catch (Throwable failure) {
             return null;
         }
@@ -1036,6 +1989,19 @@ public final class MorpheSubtitles {
 
         Cue(String block, String text) {
             this.block = block;
+            this.text = text;
+        }
+    }
+
+    /** One cue of an embedded subtitle track. */
+    private static final class TimedText {
+        final long start;
+        final long end;
+        final String text;
+
+        TimedText(long start, long end, String text) {
+            this.start = start;
+            this.end = end;
             this.text = text;
         }
     }
