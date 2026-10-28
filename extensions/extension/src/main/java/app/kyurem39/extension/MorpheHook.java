@@ -290,7 +290,10 @@ public final class MorpheHook {
             new CompoundButton.OnCheckedChangeListener() {
                 @Override
                 public void onCheckedChanged(CompoundButton button, boolean checked) {
+                    // Persist only: this sheet can run on a screen without a player, so the
+                    // selection happens off this callback and only when a player is running.
                     MorphePrefs.setSubtitleTranslationEnabled(activity, checked);
+                    if (!checked) MorpheSubtitles.selectEmbeddedSubtitleLater(activity);
                 }
             }
         );

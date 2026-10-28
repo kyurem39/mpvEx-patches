@@ -45,8 +45,12 @@ public final class MorphePrefs {
         return preferences(context).getBoolean(KEY_SUBTITLE_TRANSLATION, false);
     }
 
+    /**
+     * Stored synchronously: the value is read again while the player loads a file, possibly on
+     * another thread, so it must be on disk before this call returns.
+     */
     public static void setSubtitleTranslationEnabled(Context context, boolean enabled) {
-        preferences(context).edit().putBoolean(KEY_SUBTITLE_TRANSLATION, enabled).apply();
+        preferences(context).edit().putBoolean(KEY_SUBTITLE_TRANSLATION, enabled).commit();
     }
 
     /** BCP-47 language tag the subtitles are translated into. */

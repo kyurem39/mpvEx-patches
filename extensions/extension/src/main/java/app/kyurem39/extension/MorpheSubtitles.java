@@ -127,6 +127,20 @@ public final class MorpheSubtitles {
     /** {@code MPV_EVENT_FILE_LOADED} from {@code mpv/event.h}. */
     private static final int MPV_EVENT_FILE_LOADED = 8;
 
+    /**
+     * Time the app gets to pick its own subtitle track after a file is loaded. The app selects the
+     * track from a coroutine, up to a second after the file-loaded event, so the patch has to wait
+     * for it; otherwise its own selection would be replaced.
+     */
+    private static final long FILE_SELECT_DELAY_MILLIS = 2000;
+
+    /** Time the player gets to drop the translated track after the switch is turned off. */
+    private static final long TOGGLE_SELECT_DELAY_MILLIS = 250;
+
+    /** Guards the deferred selection so that only the most recent request can run. */
+    private static final Object SELECT_LOCK = new Object();
+    private static long selectGeneration;
+
     private MorpheSubtitles() {}
 
     public static String[] languageCodes() {
@@ -162,13 +176,21 @@ public final class MorpheSubtitles {
 
         try {
             Context context = appContext();
-            if (context == null || !MorphePrefs.isSubtitleTranslationEnabled(context)) return;
+            if (context == null) return;
 
             Activity activity = observerActivity(observer);
             if (activity == null) return;
 
             Uri uri = intentUri(activity);
             if (uri == null) return;
+
+            // With translation off the patch only makes sure the video's own subtitle track is
+            // selected, exactly as it would be without the patch. The app picks its own track
+            // later, so the selection is deferred until it is done.
+            if (!MorphePrefs.isSubtitleTranslationEnabled(context)) {
+                selectEmbeddedSubtitleLater(activity, FILE_SELECT_DELAY_MILLIS);
+                return;
+            }
 
             String name = queryDisplayName(context, uri);
             if (name == null || name.isEmpty()) name = uri.getLastPathSegment();
@@ -184,6 +206,138 @@ public final class MorpheSubtitles {
             }
         } catch (Throwable failure) {
             Log.w(TAG, "Could not start subtitle translation for the loaded file", failure);
+        }
+    }
+
+    /**
+     * Selects the video's own subtitle track, as if the patch were not installed.
+     *
+     * <p>Only tracks embedded in the video are considered. When several exist the default one is
+     * preferred, otherwise the first. Nothing is written when the video has no embedded subtitle,
+     * when the player is not running, or when the track is selected already.
+     */
+    public static void selectEmbeddedSubtitle(Activity owner) {
+        if (!playerReady(owner)) return;
+
+        try {
+            Object instance = mpvInstance();
+            Method getString = mpvMethod("getPropertyString", String.class);
+            Method getInt = mpvMethod("getPropertyInt", String.class);
+            Method getBoolean = mpvMethod("getPropertyBoolean", String.class);
+
+            int count = trackCount();
+            int selected = -1;
+            int first = -1;
+
+            for (int index = 0; index < count; index++) {
+                Object type = getString.invoke(instance, "track-list/" + index + "/type");
+                if (!"sub".equals(type)) continue;
+
+                Object external = getBoolean.invoke(
+                    instance,
+                    "track-list/" + index + "/external"
+                );
+                if (Boolean.TRUE.equals(external)) continue;
+
+                Object id = getInt.invoke(instance, "track-list/" + index + "/id");
+                if (!(id instanceof Integer) || (Integer) id <= 0) continue;
+
+                if (first < 0) first = (Integer) id;
+
+                Object isDefault = getBoolean.invoke(
+                    instance,
+                    "track-list/" + index + "/default"
+                );
+                if (Boolean.TRUE.equals(isDefault)) {
+                    selected = (Integer) id;
+                    break;
+                }
+            }
+
+            if (selected < 0) selected = first;
+            if (selected < 0) return;
+
+            // The app may have picked this track on its own already.
+            if (selectedSidId() == selected) return;
+
+            mpvMethod("setPropertyInt", String.class, int.class).invoke(
+                instance,
+                "sid",
+                selected
+            );
+            mpvMethod("setPropertyBoolean", String.class, boolean.class).invoke(
+                instance,
+                "sub-visibility",
+                true
+            );
+            Log.d(TAG, "Selected embedded subtitle track " + selected);
+        } catch (Throwable failure) {
+            Log.w(TAG, "Could not select the embedded subtitle track", failure);
+        }
+    }
+
+    /**
+     * Selects the embedded subtitle off the calling thread, once the player has settled.
+     *
+     * <p>Used when the switch is turned off during playback, where the app is not going to select
+     * a track again.
+     */
+    public static void selectEmbeddedSubtitleLater(Activity owner) {
+        selectEmbeddedSubtitleLater(owner, TOGGLE_SELECT_DELAY_MILLIS);
+    }
+
+    /**
+     * Selects the embedded subtitle after {@code delayMillis}.
+     *
+     * <p>The switch is read again when the delay is over: it may have been turned back on, and
+     * then the translation path owns the track selection. A newer request cancels an older one, so
+     * one file load selects once. Nothing is written when the player has been left in the meantime.
+     */
+    private static void selectEmbeddedSubtitleLater(final Activity owner, final long delayMillis) {
+        final Context context = appContext();
+        if (context == null) return;
+
+        final long generation;
+        synchronized (SELECT_LOCK) {
+            generation = ++selectGeneration;
+        }
+
+        new Thread(
+            new Runnable() {
+                @Override
+                public void run() {
+                    sleep(delayMillis);
+
+                    synchronized (SELECT_LOCK) {
+                        if (generation != selectGeneration) return;
+                    }
+                    if (MorphePrefs.isSubtitleTranslationEnabled(context)) return;
+
+                    selectEmbeddedSubtitle(owner);
+                }
+            },
+            "MorpheSubtitleSelect"
+        ).start();
+    }
+
+    /**
+     * Whether the app's player is running, so that mpv may be called.
+     *
+     * <p>The settings sheet can be opened from a screen that has no player, and the player may
+     * already be closing. Calling into mpv then crashes the process instead of throwing.
+     */
+    private static boolean playerReady(Activity owner) {
+        Activity activity = owner == null ? MorpheHook.currentActivity() : owner;
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) return false;
+
+        try {
+            Class<?> player = Class.forName(
+                "app.marlboroadvance.mpvex.ui.player.PlayerActivity"
+            );
+            if (!player.isInstance(activity)) return false;
+            return player.getField("mpvInitialized").getBoolean(activity);
+        } catch (Throwable failure) {
+            return false;
         }
     }
 
@@ -1258,6 +1412,11 @@ public final class MorpheSubtitles {
         int track = translated;
         while (System.currentTimeMillis() < deadline) {
             if (playerGone(owner)) return;
+
+            // The user may have turned translation off while this track was being added; the
+            // switch then owns the subtitle selection.
+            if (!MorphePrefs.isSubtitleTranslationEnabled(context)) return;
+
             if (track <= 0) track = findTrackId(title);
             selectId(track);
             sleep(150);
