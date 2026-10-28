@@ -269,10 +269,11 @@ public final class MorpheHook {
         TextView description = new TextView(activity);
         description.setText(
             vietnamese
-                ? "Tự động dịch tệp phụ đề sang ngôn ngữ đã chọn. "
+                ? "Tự động dịch phụ đề sang ngôn ngữ đã chọn, kể cả phụ đề nhúng trong video. "
                     + "Dùng Google Translate và cần kết nối mạng."
-                : "Automatically translate subtitle files into the selected language. "
-                    + "Uses Google Translate and needs an internet connection."
+                : "Automatically translate subtitles into the selected language, including "
+                    + "subtitles embedded in the video. Uses Google Translate and needs an "
+                    + "internet connection."
         );
         description.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
         description.setAlpha(0.7f);
