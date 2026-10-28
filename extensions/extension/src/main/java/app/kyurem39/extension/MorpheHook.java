@@ -37,6 +37,7 @@ import java.util.Locale;
 public final class MorpheHook {
     private static WeakReference<Activity> current;
     private static boolean listening;
+    private static boolean vietnameseInterfaceAvailable;
     private static boolean subtitleTranslationAvailable;
 
     private MorpheHook() {}
@@ -47,6 +48,14 @@ public final class MorpheHook {
      */
     public static void enableSubtitleTranslation() {
         subtitleTranslationAvailable = true;
+    }
+
+    /**
+     * Called by the Vietnamese interface patch. The language switch is hidden when that patch is
+     * not part of the applied set, so the sheet only offers settings for active patches.
+     */
+    public static void enableVietnameseInterface() {
+        vietnameseInterfaceAvailable = true;
     }
 
     static Activity currentActivity() {
@@ -128,7 +137,8 @@ public final class MorpheHook {
     }
 
     private static void show(final Activity activity, final Object backstack) {
-        final boolean enabled = MorphePrefs.isVietnameseEnabled(activity);
+        final boolean vietnameseAvailable = vietnameseInterfaceAvailable;
+        final boolean enabled = vietnameseAvailable && MorphePrefs.isVietnameseEnabled(activity);
         final boolean vietnamese = isVietnameseUi();
 
         boolean dark =
@@ -142,7 +152,9 @@ public final class MorpheHook {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(activity, 24), dp(activity, 4), dp(activity, 24), dp(activity, 4));
 
-        final Switch toggle = addVietnameseRow(activity, content, enabled, vietnamese);
+        final Switch toggle = vietnameseAvailable
+            ? addVietnameseRow(activity, content, enabled, vietnamese)
+            : null;
 
         if (subtitleTranslationAvailable) {
             addDivider(activity, content);
@@ -174,18 +186,20 @@ public final class MorpheHook {
         final AlertDialog dialog = builder.create();
 
         // The sheet saves the preference and rebuilds the interface so the new language shows.
-        toggle.setOnCheckedChangeListener(
-            new CompoundButton.OnCheckedChangeListener() {
-                @Override
-                public void onCheckedChanged(CompoundButton button, boolean checked) {
-                    if (checked == enabled) return;
+        if (toggle != null) {
+            toggle.setOnCheckedChangeListener(
+                new CompoundButton.OnCheckedChangeListener() {
+                    @Override
+                    public void onCheckedChanged(CompoundButton button, boolean checked) {
+                        if (checked == enabled) return;
 
-                    MorphePrefs.setVietnameseEnabled(activity, checked);
-                    dialog.dismiss();
-                    restart(activity);
+                        MorphePrefs.setVietnameseEnabled(activity, checked);
+                        dialog.dismiss();
+                        restart(activity);
+                    }
                 }
-            }
-        );
+            );
+        }
 
         dialog.setOnShowListener(
             new DialogInterface.OnShowListener() {
@@ -472,7 +486,8 @@ public final class MorpheHook {
 
     /** The language of the settings panel, which follows the system, never the app's locale. */
     private static boolean isVietnameseUi() {
-        return "vi".equals(Locale.getDefault().getLanguage());
+        return vietnameseInterfaceAvailable
+            && "vi".equals(Locale.getDefault().getLanguage());
     }
 
     private static void toast(final Activity activity, final String message) {
