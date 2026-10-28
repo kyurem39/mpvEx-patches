@@ -1,3 +1,15 @@
+## [1.2.0-dev.2](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.0-dev.1...v1.2.0-dev.2) (2026-10-28)
+
+### ✨ New Features
+
+* translate subtitles embedded in the video ([b9672b1](https://github.com/kyurem39/mpvEx-patches/commit/b9672b15ec0eaa5bd80ea2e3930e942191cb02e4))
+
+## [1.2.0-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.1...v1.2.0-dev.1) (2026-10-25)
+
+### ✨ New Features
+
+* translate subtitles and add a shared patch settings panel ([1e6ea0e](https://github.com/kyurem39/mpvEx-patches/commit/1e6ea0eedc945a8551be3d6661813abe684d3a12))
+
 ## [1.1.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.0...v1.1.1) (2026-10-25)
 
 ### 🐛 Bug Fixes
