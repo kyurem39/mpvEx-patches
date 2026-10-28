@@ -15,9 +15,9 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.1.1](https://github.com/kyurem39/mpvEx-patches/releases/tag/v1.1.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`main`&nbsp;&nbsp;•&nbsp;&nbsp;1 patches total
+> **[v1.2.0-dev.2](https://github.com/kyurem39/mpvEx-patches/releases/tag/v1.2.0-dev.2)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
 <details open>
-<summary>📦 mpvEx&nbsp;&nbsp;•&nbsp;&nbsp;1 patch</summary>
+<summary>📦 mpvEx&nbsp;&nbsp;•&nbsp;&nbsp;2 patches</summary>
 <br>
 
 **🎯 Supported versions:**
@@ -25,9 +25,10 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 | 1.3.1-playstore |
 | :---: |
 
-| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
-|----------|----------------|-----------|
-| [Vietnamese interface](#vietnamese-interface) | Adds a Vietnamese interface that is enabled by default, plus a "Morphe" settings row to turn it off and reach the About screen. |  |
+| 💊&nbsp;Patch | 📜&nbsp;Description |
+|----------|----------------|
+| [Subtitle translation](#subtitle-translation) | Translates external subtitle files and subtitles embedded in media files into a selected language. |
+| [Vietnamese interface](#vietnamese-interface) | Translates the application interface into Vietnamese. |
 
 </details>
 

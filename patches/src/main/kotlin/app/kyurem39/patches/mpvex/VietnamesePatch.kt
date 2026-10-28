@@ -12,6 +12,8 @@ private const val LOCALE_HELPER = "Lapp/kyurem39/extension/MorpheLocale;"
 private const val MORPHE_HOOK = "Lapp/kyurem39/extension/MorpheHook;"
 
 private const val ABOUT_SCREEN = "Lapp/marlboroadvance/mpvex/ui/preferences/AboutScreen;"
+private const val CRASH_HANDLER =
+    "Lapp/marlboroadvance/mpvex/presentation/crash/GlobalExceptionHandler;"
 private const val PREFERENCES_ROW_LAMBDA =
     "Lapp/marlboroadvance/mpvex/MainActivity\$\$ExternalSyntheticLambda7;"
 
@@ -24,14 +26,14 @@ private val ACTIVITIES = listOf(
 )
 
 /**
- * Forces the Vietnamese interface, which is on by default, and adds a "Morphe" row to the
- * mpvEx settings that turns it off again and links to the About screen.
+ * Forces the Vietnamese interface, which is on by default, and turns the About row of the mpvEx
+ * settings into the kyurem39's patches panel, which holds every patch setting.
  */
 @Suppress("unused")
 val vietnamesePatch = bytecodePatch(
     name = "Vietnamese interface",
-    description = "Adds a Vietnamese interface that is enabled by default, plus a \"Morphe\" " +
-        "settings row to turn it off and reach the About screen.",
+    description = "Adds a Vietnamese interface that is enabled by default, plus a \"kyurem39's " +
+        "patches\" settings row that opens the patch settings panel and the About screen.",
     default = true,
 ) {
     compatibleWith(COMPATIBILITY_MPVEX)
@@ -78,6 +80,22 @@ val vietnamesePatch = bytecodePatch(
             """
                 invoke-static {v3}, $MORPHE_HOOK->open(Ljava/lang/Object;)V
                 return-object v1
+            """,
+        )
+
+        // The app shows crashes on its own screen and exits, so log the cause first: otherwise a
+        // crash in patched code is invisible in logcat.
+        val uncaught = mutableClassDefBy(CRASH_HANDLER).methods.firstOrNull { method ->
+            method.name == "uncaughtException" &&
+                method.parameterTypes.size == 2 &&
+                method.parameterTypes[0].toString() == "Ljava/lang/Thread;" &&
+                method.parameterTypes[1].toString() == "Ljava/lang/Throwable;"
+        } ?: throw PatchException("$CRASH_HANDLER has no uncaughtException(Thread, Throwable).")
+
+        uncaught.addInstructions(
+            0,
+            """
+                invoke-static {p1, p2}, $MORPHE_HOOK->logCrash(Ljava/lang/Thread;Ljava/lang/Throwable;)V
             """,
         )
     }
