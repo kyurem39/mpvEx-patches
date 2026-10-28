@@ -1,6 +1,6 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.2.0",
+  "version": "1.2.1-dev.1",
   "patches": [
     {
       "name": "Subtitle translation",
@@ -31,8 +31,8 @@
     },
     {
       "name": "Vietnamese interface",
-      "description": "Adds a Vietnamese interface that is enabled by default, plus a \"kyurem39's patches\" settings row that opens the patch settings panel and the About screen.",
-      "default": true,
+      "description": "Translates the application interface into Vietnamese.",
+      "default": false,
       "category": null,
       "compatiblePackages": [
         {
