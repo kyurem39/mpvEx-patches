@@ -15,7 +15,7 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 ## 🩹 Patches list
 
 <!-- PATCHES_START EXPANDED -->
-> **[v1.2.0-dev.1](https://github.com/kyurem39/mpvEx-patches/releases/tag/v1.2.0-dev.1)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
+> **[v1.2.0-dev.2](https://github.com/kyurem39/mpvEx-patches/releases/tag/v1.2.0-dev.2)**&nbsp;&nbsp;•&nbsp;&nbsp;`dev`&nbsp;&nbsp;•&nbsp;&nbsp;2 patches total
 <details open>
 <summary>📦 mpvEx&nbsp;&nbsp;•&nbsp;&nbsp;2 patches</summary>
 <br>
@@ -27,7 +27,7 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 
 | 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
 |----------|----------------|-----------|
-| [Subtitle translation](#subtitle-translation) | Translates external subtitle files into a language you choose. The on/off switch and the target language live in the kyurem39's patches settings panel. |  |
+| [Subtitle translation](#subtitle-translation) | Translates the subtitles of the videos you play into a language you choose, including subtitles embedded in the video file. The on/off switch and the target language live in the kyurem39's patches settings panel. |  |
 | [Vietnamese interface](#vietnamese-interface) | Adds a Vietnamese interface that is enabled by default, plus a "kyurem39's patches" settings row that opens the patch settings panel and the About screen. |  |
 
 </details>

@@ -1,10 +1,10 @@
 {
   "NOTE": "Do NOT manually edit this file. This file is automatically updated when semantic release (release.yml) runs. Manually editing this file can break your releases and break third party tools that use this file.",
-  "version": "1.2.0-dev.1",
+  "version": "1.2.0-dev.2",
   "patches": [
     {
       "name": "Subtitle translation",
-      "description": "Translates external subtitle files into a language you choose. The on/off switch and the target language live in the kyurem39's patches settings panel.",
+      "description": "Translates the subtitles of the videos you play into a language you choose, including subtitles embedded in the video file. The on/off switch and the target language live in the kyurem39's patches settings panel.",
       "default": true,
       "category": null,
       "compatiblePackages": [
