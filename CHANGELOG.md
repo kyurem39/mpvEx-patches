@@ -1,3 +1,9 @@
+## [1.2.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.0...v1.2.1) (2026-10-28)
+
+### 🐛 Bug Fixes
+
+* apply the Vietnamese interface only when selected ([3f87953](https://github.com/kyurem39/mpvEx-patches/commit/3f879536b1c49e952bd048f5cc09996d54e78e56))
+
 ## [1.2.1-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.0...v1.2.1-dev.1) (2026-10-28)
 
 ### 🐛 Bug Fixes
