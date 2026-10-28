@@ -16,10 +16,10 @@ private const val PLAYER_VIEW_MODEL = "Lapp/marlboroadvance/mpvex/ui/player/Play
 /**
  * Translates the subtitles of the videos the app plays into the language chosen in the patch sheet.
  *
- * <p>The sheet itself belongs to [vietnamesePatch], which also owns the injected extension. This
- * patch only adds the call sites that start a translation: the mpv file-loaded event, the automatic
- * local-subtitle scan and the manual subtitle picker. It depends on [vietnamesePatch] so the
- * settings always exist.
+ * <p>The sheet itself is shared with the other patches and lives in [patchSettingsPatch], which
+ * also owns the injected extension. This patch only adds the call sites that start a translation:
+ * the mpv file-loaded event, the automatic local-subtitle scan and the manual subtitle picker. It
+ * depends on [patchSettingsPatch] so the settings always exist.
  */
 @Suppress("unused")
 val subtitleTranslationPatch = bytecodePatch(
@@ -31,7 +31,7 @@ val subtitleTranslationPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_MPVEX)
 
-    dependsOn(vietnamesePatch)
+    dependsOn(patchSettingsPatch)
 
     execute {
         // Marks the subtitle section of the shared settings sheet as available.
