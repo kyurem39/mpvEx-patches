@@ -5,6 +5,7 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 
+private const val MORPHE_HOOK = "Lapp/kyurem39/extension/MorpheHook;"
 private const val LOCALE_HELPER = "Lapp/kyurem39/extension/MorpheLocale;"
 
 /** Every activity mpvEx ships has to apply the locale before it reads any resource. */
@@ -44,6 +45,7 @@ val vietnamesePatch = bytecodePatch(
             onCreate.addInstructions(
                 0,
                 """
+                    invoke-static {}, $MORPHE_HOOK->enableVietnameseInterface()V
                     invoke-static {p0}, $LOCALE_HELPER->overrideConfiguration(Landroid/app/Activity;)V
                 """,
             )
