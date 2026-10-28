@@ -21,6 +21,7 @@ import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
+import java.util.Locale;
 
 /**
  * The "Morphe" settings sheet.
@@ -128,7 +129,7 @@ public final class MorpheHook {
 
     private static void show(final Activity activity, final Object backstack) {
         final boolean enabled = MorphePrefs.isVietnameseEnabled(activity);
-        final boolean vietnamese = isVietnameseUi(activity);
+        final boolean vietnamese = isVietnameseUi();
 
         boolean dark =
             (activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
@@ -462,18 +463,16 @@ public final class MorpheHook {
         if (!opened) {
             toast(
                 activity,
-                isVietnameseUi(activity)
+                isVietnameseUi()
                     ? "Không mở được màn hình giới thiệu."
                     : "Could not open the About screen."
             );
         }
     }
 
-    /** The language the interface is shown in, whether it comes from the patch or the system. */
-    private static boolean isVietnameseUi(Activity activity) {
-        return "vi".equals(
-            activity.getResources().getConfiguration().getLocales().get(0).getLanguage()
-        );
+    /** The language of the settings panel, which follows the system, never the app's locale. */
+    private static boolean isVietnameseUi() {
+        return "vi".equals(Locale.getDefault().getLanguage());
     }
 
     private static void toast(final Activity activity, final String message) {
