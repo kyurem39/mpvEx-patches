@@ -1,3 +1,12 @@
+## [1.2.0-dev.3](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.0-dev.2...v1.2.0-dev.3) (2026-10-28)
+
+### 🐛 Bug Fixes
+
+* apply the Vietnamese interface only when selected ([ec7633a](https://github.com/kyurem39/mpvEx-patches/commit/ec7633a65290e6ed288794f26d1391992dcaa09c))
+* hide inactive Vietnamese settings ([a43b4d9](https://github.com/kyurem39/mpvEx-patches/commit/a43b4d9f027f1acc34602344ec8ca559850d041b))
+* Restore original subtitle when translation is off ([294bda9](https://github.com/kyurem39/mpvEx-patches/commit/294bda93b4042bc5b3ba03ff0479a6ab79d95af6))
+* track the activity in the shared settings patch ([711670c](https://github.com/kyurem39/mpvEx-patches/commit/711670c3270a98a9d5ca18cc5f8a97b4d60181ec))
+
 ## [1.2.0](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.1...v1.2.0) (2026-10-28)
 
 ### 🐛 Bug Fixes

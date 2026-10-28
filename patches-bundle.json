@@ -1,7 +1,7 @@
 {
-  "created_at": "2026-10-28T06:20:55",
-  "description": "## [1.2.0](https://github.com/kyurem39/mpvEx-patches/compare/v1.1.1...v1.2.0) (2026-10-28)\n\n### 🐛 Bug Fixes\n\n* Restore original subtitle when translation is off ([294bda9](https://github.com/kyurem39/mpvEx-patches/commit/294bda93b4042bc5b3ba03ff0479a6ab79d95af6))\n\n### ✨ New Features\n\n* translate subtitles and add a shared patch settings panel ([1e6ea0e](https://github.com/kyurem39/mpvEx-patches/commit/1e6ea0eedc945a8551be3d6661813abe684d3a12))\n* translate subtitles embedded in the video ([b9672b1](https://github.com/kyurem39/mpvEx-patches/commit/b9672b15ec0eaa5bd80ea2e3930e942191cb02e4))",
-  "download_url": "https://github.com/kyurem39/mpvEx-patches/releases/download/v1.2.0/patches-1.2.0.mpp",
+  "created_at": "2026-10-28T07:23:55",
+  "description": "## [1.2.0-dev.3](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.0-dev.2...v1.2.0-dev.3) (2026-10-28)\n\n### 🐛 Bug Fixes\n\n* apply the Vietnamese interface only when selected ([ec7633a](https://github.com/kyurem39/mpvEx-patches/commit/ec7633a65290e6ed288794f26d1391992dcaa09c))\n* hide inactive Vietnamese settings ([a43b4d9](https://github.com/kyurem39/mpvEx-patches/commit/a43b4d9f027f1acc34602344ec8ca559850d041b))\n* Restore original subtitle when translation is off ([294bda9](https://github.com/kyurem39/mpvEx-patches/commit/294bda93b4042bc5b3ba03ff0479a6ab79d95af6))\n* track the activity in the shared settings patch ([711670c](https://github.com/kyurem39/mpvEx-patches/commit/711670c3270a98a9d5ca18cc5f8a97b4d60181ec))",
+  "download_url": "https://github.com/kyurem39/mpvEx-patches/releases/download/v1.2.0-dev.3/patches-1.2.0-dev.3.mpp",
   "signature_download_url": "",
-  "version": "1.2.0"
+  "version": "1.2.0-dev.3"
 }
