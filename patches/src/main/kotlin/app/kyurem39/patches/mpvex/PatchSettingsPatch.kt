@@ -11,6 +11,7 @@ import org.w3c.dom.Element
 
 private const val MORPHE_HOOK = "Lapp/kyurem39/extension/MorpheHook;"
 
+private const val MAIN_ACTIVITY = "Lapp/marlboroadvance/mpvex/MainActivity;"
 private const val ABOUT_SCREEN = "Lapp/marlboroadvance/mpvex/ui/preferences/AboutScreen;"
 private const val CRASH_HANDLER =
     "Lapp/marlboroadvance/mpvex/presentation/crash/GlobalExceptionHandler;"
@@ -65,6 +66,22 @@ internal val patchSettingsPatch = bytecodePatch {
     extendWith("extensions/extension.mpe")
 
     execute {
+        // The sheet is shown on the activity this tracks. Its lifecycle callbacks then follow
+        // every other activity, so one call is enough for the whole process.
+        val mainOnCreate = mutableClassDefBy(MAIN_ACTIVITY).methods.firstOrNull { method ->
+            method.name == "onCreate" &&
+                method.parameterTypes.size == 1 &&
+                method.parameterTypes[0].toString() == "Landroid/os/Bundle;" &&
+                method.returnType == "V"
+        } ?: throw PatchException("$MAIN_ACTIVITY has no onCreate(Bundle).")
+
+        mainOnCreate.addInstructions(
+            0,
+            """
+                invoke-static {p0}, $MORPHE_HOOK->track(Landroid/app/Activity;)V
+            """,
+        )
+
         // The About row is the only place that pushes AboutScreen. It opens the Morphe sheet
         // instead, and hands it the back stack so the sheet can still reach AboutScreen.
         val invoke = mutableClassDefBy(PREFERENCES_ROW_LAMBDA).methods.firstOrNull { method ->
