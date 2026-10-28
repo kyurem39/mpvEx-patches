@@ -25,10 +25,10 @@ Click here to add these patches to Morphe: https://morphe.software/add-source?gi
 | 1.3.1-playstore |
 | :---: |
 
-| 💊&nbsp;Patch | 📜&nbsp;Description | ⚙️&nbsp;Options |
-|----------|----------------|-----------|
-| [Subtitle translation](#subtitle-translation) | Translates the subtitles of the videos you play into a language you choose, including subtitles embedded in the video file. The on/off switch and the target language live in the kyurem39's patches settings panel. |  |
-| [Vietnamese interface](#vietnamese-interface) | Adds a Vietnamese interface that is enabled by default, plus a "kyurem39's patches" settings row that opens the patch settings panel and the About screen. |  |
+| 💊&nbsp;Patch | 📜&nbsp;Description |
+|----------|----------------|
+| [Subtitle translation](#subtitle-translation) | Translates external subtitle files and subtitles embedded in media files into a selected language. |
+| [Vietnamese interface](#vietnamese-interface) | Translates the application interface into Vietnamese. |
 
 </details>
 
