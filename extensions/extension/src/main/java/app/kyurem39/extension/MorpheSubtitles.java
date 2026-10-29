@@ -1966,7 +1966,7 @@ public final class MorpheSubtitles {
 
         return new File(
             directory,
-            Integer.toHexString(key.hashCode()) + "." + target + "-GoogleTranslate." + extension
+            Integer.toHexString(key.hashCode()) + "-GoogleTranslate." + target + "." + extension
         );
     }
 
