@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Application;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.util.Log;
@@ -183,8 +184,8 @@ public final class MorpheHook {
 
         final AlertDialog dialog = builder.create();
 
-        // The sheet saves the preference and shows itself again, so the panel switches language
-        // without leaving the app.
+        // The sheet saves the preference, shows itself again in the new language, then restarts
+        // the app so its own interface switches too.
         if (toggle != null) {
             toggle.setOnCheckedChangeListener(
                 new CompoundButton.OnCheckedChangeListener() {
@@ -195,6 +196,7 @@ public final class MorpheHook {
                         MorphePrefs.setVietnameseEnabled(activity, checked);
                         dialog.dismiss();
                         show(activity, backstack);
+                        restart(activity);
                     }
                 }
             );
@@ -414,6 +416,29 @@ public final class MorpheHook {
                 dp(activity, 1)
             )
         );
+    }
+
+    /**
+     * Restarts the app's task so the newly stored language takes effect.
+     *
+     * <p>{@link Activity#recreate()} is not enough: the recreated activity keeps the resources of
+     * its previous instance, including the locale override that was applied there. A fresh launch
+     * with {@code CLEAR_TASK} creates a new activity record, and its {@code onCreate} applies the
+     * stored preference from scratch.
+     */
+    private static void restart(Activity activity) {
+        try {
+            Intent intent = activity.getPackageManager()
+                .getLaunchIntentForPackage(activity.getPackageName());
+            if (intent == null) {
+                activity.recreate();
+                return;
+            }
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            activity.startActivity(intent);
+        } catch (Throwable ignored) {
+            activity.recreate();
+        }
     }
 
     /**
