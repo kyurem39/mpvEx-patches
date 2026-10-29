@@ -1,3 +1,15 @@
+## [1.3.0](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.1...v1.3.0) (2026-10-29)
+
+### 🐛 Bug Fixes
+
+* Make settings panel language follow the Vietnamese toggle ([5bb9b78](https://github.com/kyurem39/mpvEx-patches/commit/5bb9b78057a97474e734ba585b74042133646bf4))
+* Restore app restart on Vietnamese toggle change ([3dbab87](https://github.com/kyurem39/mpvEx-patches/commit/3dbab870f48bbec4a601310a778013922d308cd6))
+
+### ✨ New Features
+
+* Rename translated subtitle file to code.lang-GoogleTranslate.srt ([32a92b9](https://github.com/kyurem39/mpvEx-patches/commit/32a92b9cb11ef4d7ae056d5531989a8cf15babb9))
+* Save translated subtitle as code-GoogleTranslate.lang.ext ([c4d8cf7](https://github.com/kyurem39/mpvEx-patches/commit/c4d8cf73a5cf8c2c094911ad4f05f55ab82508be))
+
 ## [1.2.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.2.0...v1.2.1) (2026-10-28)
 
 ### 🐛 Bug Fixes
