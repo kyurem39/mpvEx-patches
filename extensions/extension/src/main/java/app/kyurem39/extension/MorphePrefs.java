@@ -33,8 +33,12 @@ public final class MorphePrefs {
         return preferences(context).getBoolean(KEY_VIETNAMESE_UI, true);
     }
 
+    /**
+     * Stored synchronously: the settings panel reads it again immediately after the toggle
+     * changes, so it must be on disk before this call returns.
+     */
     public static void setVietnameseEnabled(Context context, boolean enabled) {
-        preferences(context).edit().putBoolean(KEY_VIETNAMESE_UI, enabled).apply();
+        preferences(context).edit().putBoolean(KEY_VIETNAMESE_UI, enabled).commit();
     }
 
     /**

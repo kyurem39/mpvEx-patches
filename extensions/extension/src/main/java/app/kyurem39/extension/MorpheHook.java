@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Application;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.res.Configuration;
 import android.os.Bundle;
 import android.util.Log;
@@ -21,7 +20,6 @@ import android.widget.Toast;
 
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Method;
-import java.util.Locale;
 
 /**
  * The "Morphe" settings sheet.
@@ -139,7 +137,7 @@ public final class MorpheHook {
     private static void show(final Activity activity, final Object backstack) {
         final boolean vietnameseAvailable = vietnameseInterfaceAvailable;
         final boolean enabled = vietnameseAvailable && MorphePrefs.isVietnameseEnabled(activity);
-        final boolean vietnamese = isVietnameseUi();
+        final boolean vietnamese = isVietnameseUi(activity);
 
         boolean dark =
             (activity.getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
@@ -185,7 +183,8 @@ public final class MorpheHook {
 
         final AlertDialog dialog = builder.create();
 
-        // The sheet saves the preference and rebuilds the interface so the new language shows.
+        // The sheet saves the preference and shows itself again, so the panel switches language
+        // without leaving the app.
         if (toggle != null) {
             toggle.setOnCheckedChangeListener(
                 new CompoundButton.OnCheckedChangeListener() {
@@ -195,7 +194,7 @@ public final class MorpheHook {
 
                         MorphePrefs.setVietnameseEnabled(activity, checked);
                         dialog.dismiss();
-                        restart(activity);
+                        show(activity, backstack);
                     }
                 }
             );
@@ -418,29 +417,6 @@ public final class MorpheHook {
     }
 
     /**
-     * Restarts the app's task so the newly stored language takes effect.
-     *
-     * <p>{@link Activity#recreate()} is not enough: the recreated activity keeps the resources of
-     * its previous instance, including the locale override that was applied there. A fresh launch
-     * with {@code CLEAR_TASK} creates a new activity record, and its {@code onCreate} applies the
-     * stored preference from scratch.
-     */
-    private static void restart(Activity activity) {
-        try {
-            Intent intent = activity.getPackageManager()
-                .getLaunchIntentForPackage(activity.getPackageName());
-            if (intent == null) {
-                activity.recreate();
-                return;
-            }
-            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-            activity.startActivity(intent);
-        } catch (Throwable ignored) {
-            activity.recreate();
-        }
-    }
-
-    /**
      * Pushes the app's own About screen, which cannot be referenced at compile time. The class name
      * and object instance survive R8, and so does the name of the back stack method that pushes a
      * screen.
@@ -477,17 +453,16 @@ public final class MorpheHook {
         if (!opened) {
             toast(
                 activity,
-                isVietnameseUi()
+                isVietnameseUi(activity)
                     ? "Không mở được màn hình giới thiệu."
                     : "Could not open the About screen."
             );
         }
     }
 
-    /** The language of the settings panel, which follows the system, never the app's locale. */
-    private static boolean isVietnameseUi() {
-        return vietnameseInterfaceAvailable
-            && "vi".equals(Locale.getDefault().getLanguage());
+    /** The language of the settings panel, which follows the Vietnamese toggle only. */
+    private static boolean isVietnameseUi(Activity activity) {
+        return vietnameseInterfaceAvailable && MorphePrefs.isVietnameseEnabled(activity);
     }
 
     private static void toast(final Activity activity, final String message) {
