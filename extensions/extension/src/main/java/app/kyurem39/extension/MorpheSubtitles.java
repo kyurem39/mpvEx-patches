@@ -1964,16 +1964,9 @@ public final class MorpheSubtitles {
         if ("ssa".equals(extension)) extension = "ass";
         if (!isTranslatable(sourceName)) extension = "srt";
 
-        String base = sourceName;
-        int dot = base.lastIndexOf('.');
-        if (dot > 0) base = base.substring(0, dot);
-        base = base.replaceAll("[^A-Za-z0-9._-]", "_");
-        if (base.length() > 40) base = base.substring(0, 40);
-        if (base.isEmpty()) base = "subtitle";
-
         return new File(
             directory,
-            Integer.toHexString(key.hashCode()) + "-" + base + "." + target + "." + extension
+            Integer.toHexString(key.hashCode()) + "." + target + "-GoogleTranslate." + extension
         );
     }
 
