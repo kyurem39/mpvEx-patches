@@ -6,7 +6,6 @@ import android.app.AlertDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.res.ColorStateList;
-import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -21,6 +20,8 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.animation.DecelerateInterpolator;
+import android.widget.ArrayAdapter;
+import android.widget.CheckedTextView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -28,7 +29,7 @@ import android.widget.TextView;
 
 /**
  * Full-page settings screen for kyurem39's patches.
- * Designed to seamlessly blend with mpvEx's Material 3 styling.
+ * Uses a fixed Material Design monochrome palette.
  */
 public class PatchSettingsActivity extends Activity {
 
@@ -40,31 +41,21 @@ public class PatchSettingsActivity extends Activity {
         super.onCreate(savedInstanceState);
         MorpheLocale.overrideConfiguration(this);
 
-        final boolean dark = (getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK)
-                == Configuration.UI_MODE_NIGHT_YES;
-        final int dialogTheme = dark
+        final PanelColors colors = PanelColors.from(this);
+        final int dialogTheme = colors.isDark
                 ? android.R.style.Theme_DeviceDefault_Dialog_Alert
                 : android.R.style.Theme_DeviceDefault_Light_Dialog_Alert;
 
         final boolean vietnamese = MorpheHook.isVietnameseUi(this);
 
-        // Material 3 Color tokens
-        final int bgColor = dark ? 0xFF141218 : 0xFFFEF7FF;
-        final int cardBgColor = dark ? 0xFF211F26 : 0xFFF3EDF7;
-        final int strokeColor = dark ? 0x22FFFFFF : 0x18000000;
-        final int textColor = dark ? 0xFFE6E0E9 : 0xFF1D1B20;
-        final int textMutedColor = dark ? 0xFFCAC4D0 : 0xFF49454F;
-        final int accentColor = dark ? 0xFFD0BCFF : 0xFF6750A4;
-        final int dividerColor = dark ? 0x18FFFFFF : 0x14000000;
-
         // System bars styling
         Window window = getWindow();
-        window.setStatusBarColor(bgColor);
-        window.setNavigationBarColor(bgColor);
+        window.setStatusBarColor(colors.background);
+        window.setNavigationBarColor(colors.background);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decor = window.getDecorView();
             int flags = decor.getSystemUiVisibility();
-            if (!dark) {
+            if (!colors.isDark) {
                 flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
@@ -80,9 +71,9 @@ public class PatchSettingsActivity extends Activity {
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setBackgroundColor(bgColor);
+        root.setBackgroundColor(colors.background);
 
-        // Top App Bar (Material 3 style)
+        // Top App Bar
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -97,7 +88,7 @@ public class PatchSettingsActivity extends Activity {
         if (getTheme().resolveAttribute(android.R.attr.homeAsUpIndicator, arrowTv, true)) {
             backButton.setImageResource(arrowTv.resourceId);
         }
-        backButton.setImageTintList(ColorStateList.valueOf(textColor));
+        backButton.setImageTintList(ColorStateList.valueOf(colors.heading));
         backButton.setScaleType(ImageView.ScaleType.CENTER_INSIDE);
         backButton.setContentDescription(vietnamese ? "Quay lại" : "Back");
         LinearLayout.LayoutParams backLp = new LinearLayout.LayoutParams(dp(this, 44), dp(this, 44));
@@ -114,7 +105,7 @@ public class PatchSettingsActivity extends Activity {
         titleView.setText(vietnamese ? "Bản vá kyurem39" : "kyurem39's patches");
         titleView.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20f);
         titleView.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        titleView.setTextColor(textColor);
+        titleView.setTextColor(colors.heading);
         LinearLayout.LayoutParams titleLp = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -132,12 +123,12 @@ public class PatchSettingsActivity extends Activity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(this, 16), dp(this, 8), dp(this, 16), dp(this, 24));
 
-        // Section header
+        // Section header (sub-heading)
         TextView sectionHeader = new TextView(this);
         sectionHeader.setText(vietnamese ? "Tính năng bản vá" : "Patch Features");
         sectionHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         sectionHeader.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
-        sectionHeader.setTextColor(accentColor);
+        sectionHeader.setTextColor(colors.subHeading);
         sectionHeader.setPadding(dp(this, 12), dp(this, 12), dp(this, 12), dp(this, 8));
         content.addView(sectionHeader);
 
@@ -148,24 +139,24 @@ public class PatchSettingsActivity extends Activity {
         GradientDrawable cardDrawable = new GradientDrawable();
         cardDrawable.setShape(GradientDrawable.RECTANGLE);
         cardDrawable.setCornerRadius(dp(this, 16));
-        cardDrawable.setColor(cardBgColor);
-        cardDrawable.setStroke(dp(this, 1), strokeColor);
+        cardDrawable.setColor(colors.card);
+        cardDrawable.setStroke(dp(this, 1), colors.divider);
         card.setBackground(cardDrawable);
 
         final boolean vietnameseAvailable = MorpheHook.isVietnameseInterfaceAvailable();
         if (vietnameseAvailable) {
             final boolean enabled = MorphePrefs.isVietnameseEnabled(this);
-            addVietnameseRow(card, enabled, vietnamese, dark, textColor, textMutedColor, accentColor);
+            addVietnameseRow(card, enabled, vietnamese, colors);
         }
 
         if (MorpheHook.isSubtitleTranslationAvailable()) {
             if (vietnameseAvailable) {
-                addCardDivider(card, dividerColor);
+                addCardDivider(card, colors.divider);
             }
             final boolean subEnabled = MorphePrefs.isSubtitleTranslationEnabled(this);
-            addSubtitleTranslationRow(card, subEnabled, vietnamese, dark, textColor, textMutedColor, accentColor);
-            addCardDivider(card, dividerColor);
-            addTargetLanguageRow(card, subEnabled, vietnamese, dialogTheme, textColor, textMutedColor, accentColor);
+            addSubtitleTranslationRow(card, subEnabled, vietnamese, colors);
+            addCardDivider(card, colors.divider);
+            addTargetLanguageRow(card, subEnabled, vietnamese, dialogTheme, colors);
         }
 
         content.addView(card);
@@ -174,7 +165,7 @@ public class PatchSettingsActivity extends Activity {
         TextView footer = new TextView(this);
         footer.setText("mpvEx \u2022 kyurem39's patches " + BuildConfig.PATCH_VERSION);
         footer.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f);
-        footer.setTextColor(textMutedColor);
+        footer.setTextColor(colors.secondaryText);
         footer.setAlpha(0.6f);
         footer.setGravity(Gravity.CENTER_HORIZONTAL);
         footer.setPadding(0, dp(this, 28), 0, dp(this, 16));
@@ -190,10 +181,7 @@ public class PatchSettingsActivity extends Activity {
         LinearLayout card,
         final boolean enabled,
         boolean vietnamese,
-        boolean dark,
-        int textColor,
-        int textMutedColor,
-        int accentColor
+        final PanelColors colors
     ) {
         LinearLayout row = createSelectableRow();
 
@@ -203,7 +191,7 @@ public class PatchSettingsActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(vietnamese ? "Giao diện tiếng Việt" : "Vietnamese interface");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-        title.setTextColor(textColor);
+        title.setTextColor(colors.heading);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         labels.addView(title);
 
@@ -214,14 +202,14 @@ public class PatchSettingsActivity extends Activity {
                 : "Translate the entire mpvEx interface into Vietnamese. Turn off for the original English interface."
         );
         description.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        description.setTextColor(textMutedColor);
+        description.setTextColor(colors.bodyText);
         description.setLineSpacing(0, 1.15f);
         description.setPadding(0, dp(this, 3), dp(this, 8), 0);
         labels.addView(description);
 
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        final Material3Switch toggle = new Material3Switch(this, dark, accentColor);
+        final Material3Switch toggle = new Material3Switch(this, colors);
         toggle.setChecked(enabled, false);
         toggle.setOnCheckedChangeListener(new Material3Switch.OnCheckedChangeListener() {
             @Override
@@ -254,10 +242,7 @@ public class PatchSettingsActivity extends Activity {
         LinearLayout card,
         boolean enabled,
         boolean vietnamese,
-        boolean dark,
-        int textColor,
-        int textMutedColor,
-        int accentColor
+        final PanelColors colors
     ) {
         LinearLayout row = createSelectableRow();
 
@@ -267,7 +252,7 @@ public class PatchSettingsActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(vietnamese ? "Dịch phụ đề video" : "Subtitle translation");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-        title.setTextColor(textColor);
+        title.setTextColor(colors.heading);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         labels.addView(title);
 
@@ -278,14 +263,14 @@ public class PatchSettingsActivity extends Activity {
                 : "Automatically translate subtitles into the target language using Google Translate (requires internet)."
         );
         description.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        description.setTextColor(textMutedColor);
+        description.setTextColor(colors.bodyText);
         description.setLineSpacing(0, 1.15f);
         description.setPadding(0, dp(this, 3), dp(this, 8), 0);
         labels.addView(description);
 
         row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
-        final Material3Switch toggle = new Material3Switch(this, dark, accentColor);
+        final Material3Switch toggle = new Material3Switch(this, colors);
         toggle.setChecked(enabled, false);
         toggle.setOnCheckedChangeListener(new Material3Switch.OnCheckedChangeListener() {
             @Override
@@ -321,9 +306,7 @@ public class PatchSettingsActivity extends Activity {
         boolean subEnabled,
         final boolean vietnamese,
         final int dialogTheme,
-        int textColor,
-        int textMutedColor,
-        final int accentColor
+        final PanelColors colors
     ) {
         final LinearLayout row = createSelectableRow();
         targetLangRow = row;
@@ -334,13 +317,13 @@ public class PatchSettingsActivity extends Activity {
         TextView title = new TextView(this);
         title.setText(vietnamese ? "Ngôn ngữ đích phụ đề" : "Target subtitle language");
         title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
-        title.setTextColor(textColor);
+        title.setTextColor(colors.heading);
         title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         labels.addView(title);
 
         final TextView summary = new TextView(this);
         summary.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
-        summary.setTextColor(accentColor);
+        summary.setTextColor(colors.bodyText);
         summary.setPadding(0, dp(this, 3), dp(this, 8), 0);
         summary.setText(
             MorpheSubtitles.displayName(
@@ -355,7 +338,7 @@ public class PatchSettingsActivity extends Activity {
         TextView chevron = new TextView(this);
         chevron.setText("\u203A");
         chevron.setTextSize(TypedValue.COMPLEX_UNIT_SP, 22f);
-        chevron.setTextColor(textMutedColor);
+        chevron.setTextColor(colors.secondaryText);
         chevron.setPadding(dp(this, 4), 0, dp(this, 4), 0);
         row.addView(chevron);
 
@@ -366,7 +349,7 @@ public class PatchSettingsActivity extends Activity {
             @Override
             public void onClick(View view) {
                 if (!row.isEnabled()) return;
-                showLanguageDialog(vietnamese, dialogTheme, accentColor, summary);
+                showLanguageDialog(vietnamese, dialogTheme, colors, summary);
             }
         });
 
@@ -389,7 +372,7 @@ public class PatchSettingsActivity extends Activity {
     private void showLanguageDialog(
         final boolean vietnamese,
         int dialogTheme,
-        int accentColor,
+        final PanelColors colors,
         final TextView summary
     ) {
         final String[] codes = MorpheSubtitles.languageCodes();
@@ -406,8 +389,31 @@ public class PatchSettingsActivity extends Activity {
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this, dialogTheme);
         builder.setTitle(vietnamese ? "Chọn ngôn ngữ đích" : "Select target language");
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_list_item_single_choice,
+            names
+        ) {
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = super.getView(position, convertView, parent);
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    if (view instanceof CheckedTextView) {
+                        ((CheckedTextView) view).setCheckMarkTintList(
+                            ColorStateList.valueOf(colors.accent)
+                        );
+                    }
+                }
+                if (view instanceof TextView) {
+                    ((TextView) view).setTextColor(colors.heading);
+                }
+                return view;
+            }
+        };
+
         builder.setSingleChoiceItems(
-            names,
+            adapter,
             selected,
             new DialogInterface.OnClickListener() {
                 @Override
@@ -422,7 +428,7 @@ public class PatchSettingsActivity extends Activity {
         AlertDialog dialog = builder.create();
         dialog.show();
         if (dialog.getButton(DialogInterface.BUTTON_NEGATIVE) != null) {
-            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(accentColor);
+            dialog.getButton(DialogInterface.BUTTON_NEGATIVE).setTextColor(colors.accent);
         }
     }
 
@@ -443,10 +449,10 @@ public class PatchSettingsActivity extends Activity {
     }
 
     /**
-     * Exact Material Design 3 Switch implementation.
+     * Exact Material Design 3 Switch implementation with fixed monochrome palette.
      * Dimensions: 52dp x 32dp pill track.
      * Thumb: 16dp unselected -> 24dp selected.
-     * Smooth 200ms transition with Material 3 color palettes.
+     * Smooth 200ms transition.
      */
     public static class Material3Switch extends View {
         private final Paint trackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -467,13 +473,13 @@ public class PatchSettingsActivity extends Activity {
         private ValueAnimator animator;
         private OnCheckedChangeListener listener;
 
-        public Material3Switch(Context context, boolean dark, int accentColor) {
+        public Material3Switch(Context context, PanelColors colors) {
             super(context);
-            this.checkedTrackColor = accentColor;
-            this.checkedThumbColor = dark ? 0xFF381E72 : 0xFFFFFFFF;
-            this.uncheckedTrackColor = dark ? 0xFF36343B : 0xFFE6E0E9;
-            this.uncheckedBorderColor = dark ? 0xFF938F99 : 0xFF79747E;
-            this.uncheckedThumbColor = dark ? 0xFF938F99 : 0xFF79747E;
+            this.checkedTrackColor = colors.accent;
+            this.checkedThumbColor = colors.background;
+            this.uncheckedTrackColor = colors.divider;
+            this.uncheckedBorderColor = colors.secondaryText;
+            this.uncheckedThumbColor = colors.secondaryText;
             setClickable(false);
             setFocusable(false);
         }
@@ -581,13 +587,9 @@ public class PatchSettingsActivity extends Activity {
             }
 
             // 3. Draw thumb
-            // In Material Design 3:
-            // Unchecked thumb diameter: 16dp
-            // Checked thumb diameter: 24dp
             float thumbDiameter = (16f + 8f * progress) * density;
             float thumbRadius = thumbDiameter / 2f;
 
-            // Center X: goes from (left + 16dp) to (right - 16dp)
             float thumbCenterX = left + (16f + 20f * progress) * density;
             float thumbCenterY = top + (16f * density);
 
