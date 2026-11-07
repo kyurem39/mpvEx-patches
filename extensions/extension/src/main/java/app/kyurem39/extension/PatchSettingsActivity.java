@@ -129,7 +129,7 @@ public class PatchSettingsActivity extends Activity {
         sectionHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         sectionHeader.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         sectionHeader.setTextColor(colors.subHeading);
-        sectionHeader.setPadding(dp(this, 12), dp(this, 12), dp(this, 12), dp(this, 8));
+        sectionHeader.setPadding(dp(this, 16), dp(this, 16), dp(this, 16), dp(this, 16));
         content.addView(sectionHeader);
 
         // Settings Card
