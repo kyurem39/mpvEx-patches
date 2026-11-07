@@ -123,10 +123,14 @@ internal val patchSettingsPatch = bytecodePatch {
         renderSummaryMethod.addInstructions(
             0,
             """
+                move-object/from16 v0, p0
+                check-cast v0, Landroidx/compose/runtime/GapComposer;
+                invoke-static {v0}, Landroidx/compose/material3/MaterialTheme;->getColorScheme(Landroidx/compose/runtime/GapComposer;)Landroidx/compose/material3/ColorScheme;
+                move-result-object v0
+                iget-wide v2, v0, Landroidx/compose/material3/ColorScheme;->outline:J
                 invoke-static {}, $MORPHE_HOOK->getSummaryText()Ljava/lang/String;
                 move-result-object v0
                 const/4 v1, 0x0
-                const-wide/16 v2, 0x0
                 const-wide/16 v4, 0x0
                 const/4 v6, 0x0
                 const/4 v7, 0x0
@@ -144,7 +148,7 @@ internal val patchSettingsPatch = bytecodePatch {
                 check-cast v20, Landroidx/compose/runtime/GapComposer;
                 const/16 v21, 0x0
                 const/16 v22, 0x0
-                const v23, 0x3fffe
+                const v23, 0x3fffa
                 invoke-static/range {v0 .. v23}, Landroidx/compose/material3/TextKt;->Text-Nvy7gAk(Ljava/lang/String;Landroidx/compose/ui/Modifier;JJLandroidx/compose/ui/text/font/FontStyle;Landroidx/compose/ui/text/font/FontWeight;Landroidx/compose/ui/text/font/FontFamily;JLandroidx/compose/ui/text/style/TextDecoration;Landroidx/compose/ui/text/style/TextAlign;JIZIILandroidx/compose/ui/text/TextStyle;Landroidx/compose/runtime/GapComposer;III)V
                 return-void
             """,
