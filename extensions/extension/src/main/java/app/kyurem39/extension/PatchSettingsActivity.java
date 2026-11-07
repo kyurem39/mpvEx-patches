@@ -33,6 +33,8 @@ import android.widget.TextView;
  */
 public class PatchSettingsActivity extends Activity {
 
+    private static final int HEADER_BOTTOM_DP = 24;
+
     private View targetLangRow;
 
     @Override
@@ -129,7 +131,7 @@ public class PatchSettingsActivity extends Activity {
         sectionHeader.setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f);
         sectionHeader.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
         sectionHeader.setTextColor(colors.subHeading);
-        sectionHeader.setPadding(dp(this, 16), dp(this, 16), dp(this, 16), dp(this, 16));
+        sectionHeader.setPadding(dp(this, 16), dp(this, 12), dp(this, 16), dp(this, HEADER_BOTTOM_DP));
         content.addView(sectionHeader);
 
         // Settings Card
