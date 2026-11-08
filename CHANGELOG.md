@@ -1,3 +1,14 @@
+## [1.6.0-dev.1](https://github.com/kyurem39/mpvEx-patches/compare/v1.5.0...v1.6.0-dev.1) (2026-11-08)
+
+### 🐛 Bug Fixes
+
+* Correct inverted independent audio toggle ([d73e9b5](https://github.com/kyurem39/mpvEx-patches/commit/d73e9b50a359b79b0e9683055c95b362f47d1321))
+
+### ✨ New Features
+
+* Add independent audio patch ([027b104](https://github.com/kyurem39/mpvEx-patches/commit/027b10469a5a8199519b0adef847d6e5238a4401))
+* Add independent audio patch with panel toggle ([1cc01f2](https://github.com/kyurem39/mpvEx-patches/commit/1cc01f2a6df4a8781c22552924b95e98dc1898da))
+
 ## [1.5.0](https://github.com/kyurem39/mpvEx-patches/compare/v1.4.0...v1.5.0) (2026-11-07)
 
 ### 🐛 Bug Fixes
