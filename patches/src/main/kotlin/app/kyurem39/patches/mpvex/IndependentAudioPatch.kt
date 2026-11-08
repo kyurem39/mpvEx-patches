@@ -64,7 +64,7 @@ val independentAudioPatch = bytecodePatch(
             """
                 invoke-static {p0}, $MORPHE_PREFS->isIndependent(Landroid/content/Context;)Z
                 move-result v0
-                if-nez v0, :cond_stock
+                if-eqz v0, :cond_stock
                 const/4 v0, 0x1
                 return v0
                 :cond_stock
@@ -83,7 +83,7 @@ val independentAudioPatch = bytecodePatch(
             """
                 invoke-static {p0}, $MORPHE_PREFS->isIndependent(Landroid/content/Context;)Z
                 move-result v0
-                if-nez v0, :cond_stock
+                if-eqz v0, :cond_stock
                 return-void
                 :cond_stock
             """,
@@ -95,7 +95,7 @@ val independentAudioPatch = bytecodePatch(
             """
                 invoke-static {}, $MORPHE_PREFS->isIndependent()Z
                 move-result v0
-                if-nez v0, :cond_stock
+                if-eqz v0, :cond_stock
                 return-void
                 :cond_stock
             """,
