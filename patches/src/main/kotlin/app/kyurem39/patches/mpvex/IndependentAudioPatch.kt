@@ -6,6 +6,9 @@ import app.morphe.patcher.extensions.InstructionExtensions.addInstructions
 import app.morphe.patcher.patch.PatchException
 import app.morphe.patcher.patch.bytecodePatch
 
+private const val MORPHE_HOOK = "Lapp/kyurem39/extension/MorpheHook;"
+private const val MORPHE_PREFS = "Lapp/kyurem39/extension/MorphePrefs;"
+private const val MAIN_ACTIVITY = "Lapp/marlboroadvance/mpvex/MainActivity;"
 private const val PLAYER_ACTIVITY = "Lapp/marlboroadvance/mpvex/ui/player/PlayerActivity;"
 private const val AUDIO_FOCUS_LISTENER = "Landroid/media/AudioManager\$OnAudioFocusChangeListener;"
 
@@ -37,13 +40,34 @@ val independentAudioPatch = bytecodePatch(
 ) {
     compatibleWith(COMPATIBILITY_MPVEX)
 
+    dependsOn(patchSettingsPatch)
+
     execute {
+        // Marks the independent audio section of the shared settings sheet as available.
+        val mainOnCreate = mutableClassDefBy(MAIN_ACTIVITY).methods.firstOrNull { method ->
+            method.name == "onCreate" &&
+                method.parameterTypes.size == 1 &&
+                method.parameterTypes[0].toString() == "Landroid/os/Bundle;" &&
+                method.returnType == "V"
+        } ?: throw PatchException("$MAIN_ACTIVITY has no onCreate(Bundle).")
+
+        mainOnCreate.addInstructions(
+            0,
+            """
+                invoke-static {}, $MORPHE_HOOK->enableIndependentAudio()V
+            """,
+        )
+
         val requestMatch = RequestAudioFocusFingerprint.match()
         requestMatch.method.addInstructions(
             0,
             """
+                invoke-static {p0}, $MORPHE_PREFS->isIndependent(Landroid/content/Context;)Z
+                move-result v0
+                if-nez v0, :cond_stock
                 const/4 v0, 0x1
                 return v0
+                :cond_stock
             """,
         )
 
@@ -57,7 +81,11 @@ val independentAudioPatch = bytecodePatch(
         abandonMethod.addInstructions(
             0,
             """
+                invoke-static {p0}, $MORPHE_PREFS->isIndependent(Landroid/content/Context;)Z
+                move-result v0
+                if-nez v0, :cond_stock
                 return-void
+                :cond_stock
             """,
         )
 
@@ -65,7 +93,11 @@ val independentAudioPatch = bytecodePatch(
         focusChangeMatch.method.addInstructions(
             0,
             """
+                invoke-static {}, $MORPHE_PREFS->isIndependent()Z
+                move-result v0
+                if-nez v0, :cond_stock
                 return-void
+                :cond_stock
             """,
         )
     }

@@ -42,6 +42,7 @@ public final class MorpheHook {
     private static boolean listening;
     private static boolean vietnameseInterfaceAvailable;
     private static boolean subtitleTranslationAvailable;
+    private static boolean independentAudioAvailable;
 
     public static Object TITLE_LAMBDA;
     public static Object SUMMARY_LAMBDA;
@@ -60,6 +61,10 @@ public final class MorpheHook {
 
     static boolean isSubtitleTranslationAvailable() {
         return subtitleTranslationAvailable;
+    }
+
+    static boolean isIndependentAudioAvailable() {
+        return independentAudioAvailable;
     }
 
     public static String getTitleText() {
@@ -182,6 +187,14 @@ public final class MorpheHook {
      */
     public static void enableVietnameseInterface() {
         vietnameseInterfaceAvailable = true;
+    }
+
+    /**
+     * Called by the independent audio patch. The independent audio switch is hidden when that
+     * patch is not part of the applied set.
+     */
+    public static void enableIndependentAudio() {
+        independentAudioAvailable = true;
     }
 
     static Activity currentActivity() {
