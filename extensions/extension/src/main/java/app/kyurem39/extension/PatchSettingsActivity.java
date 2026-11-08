@@ -152,13 +152,21 @@ public class PatchSettingsActivity extends Activity {
         }
 
         if (MorpheHook.isSubtitleTranslationAvailable()) {
-            if (vietnameseAvailable) {
+            if (card.getChildCount() > 0) {
                 addCardDivider(card, colors.divider);
             }
             final boolean subEnabled = MorphePrefs.isSubtitleTranslationEnabled(this);
             addSubtitleTranslationRow(card, subEnabled, vietnamese, colors);
             addCardDivider(card, colors.divider);
             addTargetLanguageRow(card, subEnabled, vietnamese, dialogTheme, colors);
+        }
+
+        if (MorpheHook.isIndependentAudioAvailable()) {
+            if (card.getChildCount() > 0) {
+                addCardDivider(card, colors.divider);
+            }
+            final boolean audioEnabled = MorphePrefs.isIndependent(this);
+            addIndependentAudioRow(card, audioEnabled, vietnamese, colors);
         }
 
         content.addView(card);
@@ -283,6 +291,64 @@ public class PatchSettingsActivity extends Activity {
                     targetLangRow.setEnabled(checked);
                     targetLangRow.setAlpha(checked ? 1.0f : 0.38f);
                 }
+            }
+        });
+
+        LinearLayout.LayoutParams toggleLp = new LinearLayout.LayoutParams(
+            dp(this, 52),
+            dp(this, 32)
+        );
+        toggleLp.gravity = Gravity.CENTER_VERTICAL;
+        row.addView(toggle, toggleLp);
+
+        row.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                toggle.toggle();
+            }
+        });
+
+        card.addView(row);
+    }
+
+    private void addIndependentAudioRow(
+        LinearLayout card,
+        final boolean enabled,
+        boolean vietnamese,
+        final PanelColors colors
+    ) {
+        LinearLayout row = createSelectableRow();
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+
+        TextView title = new TextView(this);
+        title.setText(vietnamese ? "Âm thanh độc lập" : "Independent audio");
+        title.setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f);
+        title.setTextColor(colors.heading);
+        title.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        labels.addView(title);
+
+        TextView description = new TextView(this);
+        description.setText(
+            vietnamese
+                ? "Phát video không làm dừng âm thanh của ứng dụng khác và ngược lại."
+                : "Play video without pausing other apps' audio, and keep playing when other apps start audio."
+        );
+        description.setTextSize(TypedValue.COMPLEX_UNIT_SP, 13f);
+        description.setTextColor(colors.bodyText);
+        description.setLineSpacing(0, 1.15f);
+        description.setPadding(0, dp(this, 3), dp(this, 8), 0);
+        labels.addView(description);
+
+        row.addView(labels, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        final Material3Switch toggle = new Material3Switch(this, colors);
+        toggle.setChecked(enabled, false);
+        toggle.setOnCheckedChangeListener(new Material3Switch.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(Material3Switch switchView, boolean checked) {
+                MorphePrefs.setIndependentAudioEnabled(PatchSettingsActivity.this, checked);
             }
         });
 
